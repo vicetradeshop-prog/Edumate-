@@ -233,7 +233,7 @@ Sans cette étape, la page de connexion affiche bien **« Mot de passe oublié ?
    MAIL_FROM     = EduMate <no-reply@ton-domaine.fr>
    MAIL_REPLY_TO = ton@email.fr
    ```
-5. **Save Changes** (redéploiement automatique).
+5. **Save Changes** (redéploiement automatique). `MAIL_FROM` et `MAIL_REPLY_TO` sont déjà posés par `render.yaml` : `MAIL_API_KEY` est donc la **seule** variable à ajouter.
 
 **Vérification** — ouvre `https://ton-service.onrender.com/api/health` :
 
@@ -243,7 +243,11 @@ Sans cette étape, la page de connexion affiche bien **« Mot de passe oublié ?
 
 Puis demande un lien sur `/mot-de-passe-oublie` avec ton adresse : `sent` doit passer à `1`.
 
-**Alternatives** : `resend` (100/jour), `sendgrid`, `mailgun`, `postmark`, ou `smtp` avec une adresse Gmail/OVH (mot de passe d'application requis). Aucun fournisseur ? Laisse vide : les liens partent dans les **Logs**, et tu peux les copier-coller toi-même.
+**Encore plus simple** : connecte-toi en administrateur, ouvre **`/admin`** → carte **« E-mails — mot de passe oublié »**. Elle liste les variables manquantes, signale les pièges (SMTP sur Render, expéditeur `@gmail.com`) et propose un bouton **« Envoyer un e-mail de test »** qui renvoie le verdict réel du fournisseur.
+
+> 🔴 **N'utilise PAS `MAIL_PROVIDER=smtp` sur Render** : depuis septembre 2025, le plan gratuit bloque les ports sortants **25, 465 et 587**. La connexion expire en silence, sans erreur. Passe par une API HTTPS (port 443, jamais bloqué) — `brevo`, `sendgrid`, `resend`, `mailgun`, `postmark`. Le SMTP reste valable en local ou sur un VPS.
+
+**Expéditeur `@gmail.com` ?** Tu ne peux pas authentifier ce domaine (SPF/DKIM), donc une partie des messages finira en indésirables. **SendGrid** s'en sort le mieux grâce à sa *Single Sender Verification* (un lien de confirmation arrive sur la boîte Gmail). La solution durable reste un domaine à toi (~10 €/an). Aucun fournisseur ? Laisse vide : les liens partent dans les **Logs**, et tu peux les copier-coller toi-même.
 
 > 🔑 **Compte administrateur bloqué ?** Pas besoin d'e-mails : `RECOVERY_EMAIL` + `RECOVERY_PASSWORD` dans Render, un redéploiement, tu te connectes, puis tu **supprimes les deux variables**. Procédure détaillée : [`docs/MOT-DE-PASSE-OUBLIE.md`](MOT-DE-PASSE-OUBLIE.md#2-urgence-récupérer-un-compte-administrateur).
 

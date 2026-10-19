@@ -118,7 +118,7 @@ Onglet **Environment** → *Add Environment Variable* :
 | `MAIL_PROVIDER` | `brevo` / `resend` / `sendgrid` / `mailgun` / `postmark` / `smtp` / `log` / `none` | *(recommandé)* « Mot de passe oublié » — vide = déduit du format de la clé |
 | `MAIL_API_KEY` | `xkeysib-…` / `re_…` / `SG.…` — **uniquement ici** | *(recommandé)* avec `MAIL_PROVIDER` |
 | `MAIL_FROM` | `EduMate <no-reply@ton-domaine.fr>` | *(recommandé)* domaine à valider chez le fournisseur (DKIM/SPF) |
-| `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | `smtp.gmail.com` `465` `true` … | *(optionnel)* uniquement si `MAIL_PROVIDER=smtp` |
+| `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | `smtp.gmail.com` `465` `true` … | 🔴 **inutilisable sur Render gratuit** (ports 25/465/587 bloqués en sortie depuis septembre 2025) — local ou VPS uniquement |
 | `PASSWORD_RESET_TTL_MINUTES` | `30` | *(optionnel)* validité du lien, bornée 5–1440 |
 | `RECOVERY_EMAIL` `RECOVERY_PASSWORD` | compte à dépanner + nouveau mot de passe | 🔴 *(urgence)* **à supprimer après usage** : réappliqué à chaque démarrage |
 

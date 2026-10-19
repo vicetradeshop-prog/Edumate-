@@ -27,6 +27,7 @@
     "test:api": "node scripts/smoke-test.mjs",
     "test:api:built": "node scripts/smoke-test.mjs --built",
     "test:db": "npm run test:storage && npm run test:e2e-db && npm run test:e2e-db:built && npm run test:e2e-db:badurl",
+    "test:mail": "node scripts/test-mailer.mjs",
     "test:storage": "tsx scripts/test-upstash.mjs && tsx scripts/test-upstash.mjs unreachable",
     "test:e2e-db": "node scripts/e2e-upstash.mjs",
     "test:e2e-db:built": "node scripts/e2e-upstash.mjs --built",
@@ -48,7 +49,7 @@
     "test:hooks": "python3 scripts/audit-hooks.py",
     "test:calendar": "tsx scripts/test-calendar-ui.ts",
     "test:ui": "tsx scripts/test-ui-regression.ts",
-    "test:all": "npm run scan && npm run build && npm run test && npm run test:api:built && npm run test:db && npm run test:bundle && npm run test:modal && npm run test:stars && npm run test:music && npm run test:lessons && npm run test:lessons-ui && npm run test:sw && npm run test:pwa && npm run test:whiteboard && npm run test:feed-ui && npm run test:calendar && npm run test:ui && npm run test:feed && npm run test:render && npm run test:hooks",
+    "test:all": "npm run scan && npm run build && npm run test && npm run test:api:built && npm run test:db && npm run test:mail && npm run test:bundle && npm run test:modal && npm run test:stars && npm run test:music && npm run test:lessons && npm run test:lessons-ui && npm run test:sw && npm run test:pwa && npm run test:whiteboard && npm run test:feed-ui && npm run test:calendar && npm run test:ui && npm run test:feed && npm run test:render && npm run test:hooks",
     "icons": "node scripts/make-icons.mjs",
     "zip": "npm run scan && node scripts/make-zip.mjs"
   },

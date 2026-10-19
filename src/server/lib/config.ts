@@ -122,6 +122,28 @@ function normalizeMailProvider(value: string | undefined): MailProviderSetting {
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const isProduction = nodeEnv === 'production';
 
+/* ------------------------------------------------------------------ */
+/*  Hébergement : Render bloque les ports SMTP sur le plan gratuit      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * True quand l'application tourne sur Render.
+ *
+ * Render injecte ces variables dans tous ses services ; elles servent ici à
+ * prévenir d'un piège précis : **depuis septembre 2025, les services web du plan
+ * GRATUIT bloquent le trafic sortant vers les ports SMTP 25, 465 et 587**.
+ * Un `MAIL_PROVIDER=smtp` parfaitement configuré s'y traduit donc par un
+ * timeout silencieux, sans aucun message d'erreur explicite.
+ *
+ * https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports
+ */
+export const isRenderHost = Boolean(
+  process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL || process.env.RENDER,
+);
+
+/** Ports SMTP fermés par le pare-feu sortant de Render (plan gratuit). */
+export const RENDER_BLOCKED_SMTP_PORTS = [25, 465, 587] as const;
+
 export const config = {
   env: nodeEnv,
   isProduction,
@@ -160,8 +182,17 @@ export const config = {
   mail: {
     provider: normalizeMailProvider(process.env.MAIL_PROVIDER),
     apiKey: (process.env.MAIL_API_KEY ?? '').trim(),
-    /** Expéditeur : « EduMate <no-reply@mondomaine.fr> » ou adresse nue. */
-    from: (process.env.MAIL_FROM ?? '').trim() || 'EduMate <no-reply@edumate.local>',
+    /**
+     * Expéditeur : « EduMate <no-reply@mondomaine.fr> » ou adresse nue.
+     *
+     * Non renseigné, il est déduit de `SMTP_USER` : avec Gmail/OVH l'expéditeur
+     * DOIT être le compte authentifié, donc une seule variable suffit au lieu de
+     * deux (et on évite l'erreur classique « 553 authentication required »).
+     */
+    from:
+      (process.env.MAIL_FROM ?? '').trim() ||
+      ((process.env.SMTP_USER ?? '').trim() ? `EduMate <${(process.env.SMTP_USER ?? '').trim()}>` : '') ||
+      'EduMate <no-reply@edumate.local>',
     fromName: (process.env.MAIL_FROM_NAME ?? '').trim() || 'EduMate',
     replyTo: (process.env.MAIL_REPLY_TO ?? '').trim(),
     mailgunDomain: (process.env.MAILGUN_DOMAIN ?? '').trim(),

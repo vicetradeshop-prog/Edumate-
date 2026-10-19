@@ -507,9 +507,17 @@ Les API de **Brevo**, **Resend**, **SendGrid**, **Mailgun** et **Postmark** sont
 | **SendGrid** | 100 e-mails/jour | `SG.…` |
 | **Mailgun** | 100/jour (essai) | `key-…` + `MAILGUN_DOMAIN` |
 | **Postmark** | 100/mois | jeton serveur (UUID) |
-| **SMTP** (Gmail, OVH, Infomaniak…) | selon l'hébergeur | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` |
+| **SMTP** (Gmail, OVH…) | selon l'hébergeur | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` — 🔴 **bloqué sur Render gratuit** |
 
-`MAIL_PROVIDER` peut rester **vide** : le fournisseur est déduit du format de la clé, exactement comme pour l'assistant IA.
+`MAIL_PROVIDER` peut rester **vide** : le fournisseur est déduit du format de la clé, exactement comme pour l'assistant IA. Sur Render, **une seule variable suffit donc** (`MAIL_API_KEY`) — `MAIL_FROM` et `MAIL_REPLY_TO` sont déjà posés par `render.yaml`.
+
+> 🔴 **Piège n°1 : SMTP sur Render.** Depuis septembre 2025, les services web du plan **gratuit** bloquent les ports SMTP sortants **25, 465 et 587**. Un `MAIL_PROVIDER=smtp` parfaitement configuré y expire **en silence**, sans erreur. Utilise une API HTTPS (port 443, jamais bloqué). EduMate détecte cette combinaison et l'affiche au démarrage, dans `/api/admin/mail-status` et en bandeau rouge dans `/admin`.
+>
+> 🟠 **Piège n°2 : expéditeur `@gmail.com`.** Tu ne peux pas authentifier un domaine qui ne t'appartient pas (SPF/DKIM), donc une partie des messages finira en indésirables. **SendGrid** s'en sort le mieux dans ce cas grâce à sa *Single Sender Verification* (un lien de confirmation est envoyé sur la boîte Gmail). La solution durable reste un domaine à toi (~10 €/an). Voir [`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md#cas-concret--je-veux-envoyer-depuis-une-adresse-gmailcom).
+
+### Vérifier la configuration en un clic
+
+Le panneau **`/admin`** contient une carte **« E-mails — mot de passe oublié »** : fournisseur actif, expéditeur, clé **masquée**, variables manquantes nommées comme dans Render, pièges détectés, et un bouton **« Envoyer un e-mail de test »** (5 envois / 10 min) qui renvoie le verdict réel du fournisseur. C'est le seul moyen de valider la chaîne complète avant qu'un élève n'en dépende.
 
 ### Sans aucune configuration, rien ne casse
 
@@ -907,6 +915,8 @@ Chaque fonctionnalité gère : réseau coupé, serveur indisponible, session exp
 | Lien reçu : « Ce lien a expiré » sur une instance fraîche | Stockage mémoire : les jetons ne survivent pas au redémarrage | Configure Upstash (`FALLBACK_STORAGE=memory` est un repli de développement) |
 | « Trop de demandes pour cette adresse » | Anti-harcèlement : 60 s entre deux demandes, 5/heure | Attends la fin du compte à rebours affiché à l'écran ; réglable via `PASSWORD_RESET_COOLDOWN_SECONDS` |
 | **Mot de passe administrateur perdu** (e-mails non configurés) | Aucune voie de réinitialisation sans messagerie | `RECOVERY_EMAIL` + `RECOVERY_PASSWORD` dans Render → redéployer → se connecter → **supprimer les variables**. Voir [`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md#2-urgence-récupérer-un-compte-administrateur) |
+| E-mails SMTP : **timeout silencieux**, aucune erreur dans les logs | 🔴 Render (plan gratuit) bloque les ports sortants **25, 465 et 587** depuis septembre 2025 | Passe par une API HTTPS : `MAIL_PROVIDER=brevo`/`sendgrid`/`resend` + `MAIL_API_KEY`. EduMate affiche cet avertissement au démarrage et dans `/admin` |
+| Les e-mails de réinitialisation arrivent en **indésirables** | Expéditeur `@gmail.com` : domaine non authentifiable (SPF/DKIM absents) | Utilise SendGrid + *Single Sender Verification*, ou un domaine à toi (~10 €/an) |
 | SMTP : `Invalid login` / `535` | Mot de passe du compte utilisé au lieu d'un mot de passe d'application | Gmail : <https://myaccount.google.com/apppasswords> (validation en deux étapes requise) |
 | SMTP : `Connection timeout` | Couple port / `SMTP_SECURE` incohérent | `465` → `SMTP_SECURE=true` ; `587` → `false` (STARTTLS) |
 | `npm run test:sw` : 10 échecs (`coquille pré-cachée — 0 entrées`, `page de secours`…) | Le test ouvrait le cache `edumate-shell-v2` **codé en dur**, alors que `sw.js` en est à `v8` : il inspectait un cache vide | Corrigé : le nom est désormais **déduit de `sw.js`** (`const VERSION`), deux garde-fous vérifient l'extraction. 42/52 → **54/54** |

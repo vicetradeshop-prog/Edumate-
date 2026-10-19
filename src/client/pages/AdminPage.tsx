@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Eye, RefreshCw, ShieldCheck, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Database, Eye, Mail, RefreshCw, Send, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { Button, IconButton } from '../components/ui/Button.js';
 import { Card, CardSubtitle, CardTitle } from '../components/ui/Card.js';
 import { Badge } from '../components/ui/Badge.js';
@@ -33,6 +33,19 @@ interface AdminStats {
   families: number;
 }
 
+/** Diagnostic e-mail renvoyé par `GET /api/admin/mail-status`. */
+interface MailStatus {
+  provider: string;
+  configured: boolean;
+  from: string;
+  missing: string[];
+  warnings: string[];
+  behaviour: string;
+  apiKey: string;
+  smtp: { host: string; port: number; user: string; passSet: boolean };
+  remainingTests: number;
+}
+
 interface CatalogDetail {
   subjects: { id: string; name: string; emoji: string; topics: number; families: string[] }[];
   levels: { id: string; name: string; short: string }[];
@@ -48,9 +61,42 @@ export default function AdminPage() {
   const users = useApi<{ users: AdminUser[]; total: number }>(() => api.get('/api/admin/users'), { deps: [] });
   const catalog = useApi<CatalogDetail>(() => api.get('/api/admin/catalog'), { deps: [] });
 
+  const mail = useApi<MailStatus>(() => api.get<MailStatus>('/api/admin/mail-status'), { deps: [] });
+
   const [query, setQuery] = useState('');
   const [preview, setPreview] = useState<{ topicId: string; questions: { prompt: string; explanation: string }[] } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminUser | null>(null);
+  const [mailTestTo, setMailTestTo] = useState('');
+  const [mailTesting, setMailTesting] = useState(false);
+  const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  /**
+   * Envoie un VRAI e-mail de test : seul moyen de valider la chaîne complète
+   * (clé, expéditeur, authentification du domaine, délivrabilité) avant qu'un
+   * élève n'en dépende pour récupérer son compte.
+   */
+  const sendMailTest = async (): Promise<void> => {
+    setMailTesting(true);
+    setMailTestResult(null);
+    try {
+      const result = await api.post<{ ok: boolean; to: string; provider: string; durationMs: number; remainingTests: number }>(
+        '/api/admin/mail-test',
+        mailTestTo.trim() ? { to: mailTestTo.trim() } : {},
+      );
+      setMailTestResult({
+        ok: true,
+        text: `Envoyé à ${result.to} via ${result.provider} en ${result.durationMs} ms. Vérifie la boîte de réception ET les indésirables.`,
+      });
+      toast.success('E-mail de test envoyé.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Envoi impossible.';
+      setMailTestResult({ ok: false, text: message });
+      toast.error(message);
+    } finally {
+      setMailTesting(false);
+      void mail.reload();
+    }
+  };
 
   const search = async (): Promise<void> => {
     const result = await api
@@ -289,6 +335,104 @@ export default function AdminPage() {
               Les identifiants figurent dans <code>data/generated/catalog.json</code>. Tu peux aussi utiliser la commande{' '}
               <code>npm run test:content</code> pour contrôler l’ensemble du catalogue.
             </p>
+          </Card>
+
+          {/* ------------------------------------------------------------ */}
+          {/*  E-mails : état réel de la configuration « mot de passe oublié » */}
+          {/* ------------------------------------------------------------ */}
+          <Card flat>
+            <CardTitle icon={<Mail size={17} />}>E-mails — mot de passe oublié</CardTitle>
+            <CardSubtitle>
+              État du fournisseur d’envoi, variables manquantes et test réel. Sans fournisseur actif, les liens de
+              réinitialisation sont écrits dans les journaux Render au lieu d’être envoyés.
+            </CardSubtitle>
+
+            {mail.loading ? (
+              <Loader label="Lecture de la configuration e-mail…" />
+            ) : mail.error ? (
+              <Notice tone="danger">{mail.error}</Notice>
+            ) : mail.data ? (
+              <div className="ed-stack" style={{ gap: 10, marginTop: 12 }}>
+                <div className="ed-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <Badge tone={mail.data.configured ? 'success' : 'warning'}>
+                    {mail.data.configured ? 'opérationnel' : 'inactif'}
+                  </Badge>
+                  <Badge tone="primary">fournisseur : {mail.data.provider}</Badge>
+                  {mail.data.from ? <Badge tone="default">expéditeur : {mail.data.from}</Badge> : null}
+                  {mail.data.apiKey ? <Badge tone="default">clé : {mail.data.apiKey}</Badge> : null}
+                  <Badge tone="default">{mail.data.remainingTests} test(s) restant(s) / 10 min</Badge>
+                </div>
+
+                <p className="ed-small ed-soft">{mail.data.behaviour ?? 'État inconnu.'}</p>
+
+                {mail.data.provider === 'smtp' && mail.data.smtp.host ? (
+                  <p className="ed-small ed-mute">
+                    Serveur : <code>{mail.data.smtp.host}:{mail.data.smtp.port}</code> · compte{' '}
+                    <code>{mail.data.smtp.user}</code> · mot de passe {mail.data.smtp.passSet ? 'renseigné' : 'ABSENT'}
+                  </p>
+                ) : null}
+
+                {(mail.data.missing ?? []).length ? (
+                  <Notice tone="warning">
+                    <span className="ed-row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                      <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+                      <span>
+                        Variable(s) à ajouter dans Render → Environment :{' '}
+                        {(mail.data.missing ?? []).map((name) => (
+                          <code key={name} style={{ marginRight: 6 }}>
+                            {name}
+                          </code>
+                        ))}
+                      </span>
+                    </span>
+                  </Notice>
+                ) : null}
+
+                {(mail.data.warnings ?? []).map((warning) => (
+                  <Notice key={warning} tone="danger">
+                    <span className="ed-row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                      <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+                      <span>{warning}</span>
+                    </span>
+                  </Notice>
+                ))}
+
+                <div className="ed-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <TextInput
+                    value={mailTestTo}
+                    onChange={(event) => setMailTestTo(event.target.value)}
+                    placeholder={user?.email ?? 'destinataire du test'}
+                    aria-label="Destinataire de l’e-mail de test"
+                    type="email"
+                    style={{ minHeight: 40, flex: '1 1 220px' }}
+                  />
+                  <Button
+                    size="sm"
+                    variant={mail.data.configured ? 'primary' : 'soft'}
+                    icon={<Send size={15} />}
+                    loading={mailTesting}
+                    disabled={!mail.data.configured}
+                    onClick={() => void sendMailTest()}
+                  >
+                    Envoyer un e-mail de test
+                  </Button>
+                  <IconButton label="Recharger l’état" onClick={() => void mail.reload()}>
+                    <RefreshCw size={15} />
+                  </IconButton>
+                </div>
+
+                {mailTestResult ? (
+                  <Notice tone={mailTestResult.ok ? 'success' : 'danger'}>{mailTestResult.text}</Notice>
+                ) : null}
+
+                <p className="ed-small ed-mute">
+                  🔒 Le plan gratuit de Render bloque les ports SMTP sortants <strong>25, 465 et 587</strong> : un{' '}
+                  <code>MAIL_PROVIDER=smtp</code> y expirera sans erreur explicite. Utilise une API HTTPS (
+                  <code>brevo</code>, <code>sendgrid</code>, <code>resend</code>…). Détails :{' '}
+                  <code>docs/MOT-DE-PASSE-OUBLIE.md</code>.
+                </p>
+              </div>
+            ) : null}
           </Card>
         </div>
       </div>

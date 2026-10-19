@@ -8,7 +8,9 @@
  */
 import { Router } from 'express';
 import { deleteUser, findUserById, listUsers, updateUser, toPublicUser } from '../lib/store.js';
-import { asyncHandler, badRequest, notFound, requireAdmin, requireCsrf } from '../lib/middleware.js';
+import { asyncHandler, badRequest, notFound, requireAdmin, requireCsrf, tooManyRequests } from '../lib/middleware.js';
+import { buildMailTemplate, diagnoseMailer, hasMailer, sendMail } from '../lib/mailer.js';
+import { requireEmail } from '../lib/validation.js';
 import { getCatalog } from '../lib/catalog.js';
 import { buildQuiz } from '../content/index.js';
 import { FAMILIES } from '../content/index.js';
@@ -32,6 +34,150 @@ adminRouter.get('/stats', asyncHandler(async (_req, res) => {
     families: Object.keys(FAMILIES).length,
   });
 }));
+
+/* ------------------------------------------------------------------ */
+/*  E-mails : état de la configuration et envoi de test                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Garde-fou anti-abus de l'envoi de test : 5 messages par tranche de 10 minutes.
+ *
+ * La route est déjà réservée aux administrateurs, mais un bouton « tester »
+ * sans limite transformerait un compte admin compromis en relais de spam —
+ * et épuiserait le quota quotidien du fournisseur en quelques clics.
+ */
+const MAIL_TEST_WINDOW_MS = 10 * 60 * 1000;
+const MAIL_TEST_MAX = 5;
+const mailTestWindow = { start: Date.now(), count: 0 };
+
+/** Masque une clé d'API pour l'affichage : `xkeysib-abc…xyz (34 car.)`. */
+function maskSecret(value: string): string {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  if (text.length <= 8) return `${text.slice(0, 2)}…`;
+  return `${text.slice(0, 7)}…${text.slice(-3)} (${text.length} car.)`;
+}
+
+/**
+ * GET /api/admin/mail-status — diagnostic complet, sans rien envoyer.
+ *
+ * Répond aux trois questions que se pose l'administrateur : quel fournisseur
+ * est actif, que manque-t-il exactement, et quels pièges s'appliquent
+ * (notamment SMTP sur Render, où les ports 25/465/587 sont fermés).
+ */
+adminRouter.get('/mail-status', (_req, res) => {
+  const diagnosis = diagnoseMailer();
+  res.json({
+    ...diagnosis,
+    // La clé n'est JAMAIS renvoyée en clair : seule sa forme masquée permet de
+    // vérifier qu'une valeur est bien présente (et laquelle, si plusieurs).
+    apiKey: maskSecret((process.env.MAIL_API_KEY ?? '').trim()),
+    smtp: {
+      host: diagnosis.provider === 'smtp' ? (process.env.SMTP_HOST ?? '').trim() : '',
+      port: diagnosis.provider === 'smtp' ? Number(process.env.SMTP_PORT ?? 587) : 0,
+      user: diagnosis.provider === 'smtp' ? (process.env.SMTP_USER ?? '').trim() : '',
+      passSet: diagnosis.provider === 'smtp' ? Boolean((process.env.SMTP_PASS ?? '').trim()) : false,
+    },
+    remainingTests: Math.max(0, MAIL_TEST_MAX - (Date.now() - mailTestWindow.start < MAIL_TEST_WINDOW_MS ? mailTestWindow.count : 0)),
+  });
+});
+
+/**
+ * POST /api/admin/mail-test — envoie VRAIMENT un e-mail de test.
+ *
+ * Seul moyen fiable de valider la chaîne complète (clé, expéditeur,
+ * authentification du domaine, délivrabilité) avant qu'un élève n'en dépende.
+ * Le destinataire par défaut est l'administrateur lui-même ; une autre adresse
+ * est acceptée pour tester la réception côté élève.
+ *
+ * L'échec du fournisseur est renvoyé tel quel (statut 502) : contrairement à
+ * `/api/auth/forgot`, cette route est réservée à l'administrateur, donc
+ * exposer le détail ne révèle rien sur les comptes des élèves.
+ */
+adminRouter.post(
+  '/mail-test',
+  asyncHandler(async (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const admin = await findUserById(req.auth!.sub);
+    if (!admin) throw badRequest('Compte introuvable.');
+
+    const to = requireEmail(typeof body.to === 'string' && body.to.trim() ? body.to : admin.email);
+
+    const diagnosis = diagnoseMailer();
+    if (!diagnosis.configured) {
+      throw badRequest(
+        `Aucun fournisseur d’e-mails opérationnel (${diagnosis.provider}). ` +
+          (diagnosis.missing.length ? `Variable(s) manquante(s) : ${diagnosis.missing.join(', ')}. ` : '') +
+          (diagnosis.warnings[0] ?? ''),
+      );
+    }
+
+    const now = Date.now();
+    if (now - mailTestWindow.start >= MAIL_TEST_WINDOW_MS) {
+      mailTestWindow.start = now;
+      mailTestWindow.count = 0;
+    }
+    if (mailTestWindow.count >= MAIL_TEST_MAX) {
+      const retryAfterSec = Math.max(1, Math.round((mailTestWindow.start + MAIL_TEST_WINDOW_MS - now) / 1000));
+      throw tooManyRequests(
+        `Limite atteinte : ${MAIL_TEST_MAX} e-mails de test par tranche de 10 minutes. Réessaie dans ${Math.ceil(retryAfterSec / 60)} min.`,
+        retryAfterSec,
+      );
+    }
+    mailTestWindow.count += 1;
+
+    const { html, text } = buildMailTemplate({
+      firstName: admin.firstName,
+      title: 'E-mail de test EduMate',
+      intro: [
+        'Si tu lis ce message, l’envoi d’e-mails est correctement configuré.',
+        `Fournisseur : ${diagnosis.provider}. Expéditeur : ${diagnosis.from}.`,
+        'Les liens de réinitialisation de mot de passe emprunteront exactement ce même canal.',
+      ],
+      warning:
+        'Ce message est un test envoyé depuis le panneau d’administration. ' +
+        'S’il est arrivé dans les indésirables, c’est le signe que le domaine expéditeur n’est pas authentifié (SPF/DKIM).',
+      footer: 'Panneau d’administration EduMate — test de configuration e-mail.',
+    });
+
+    const startedAt = Date.now();
+    const result = await sendMail({
+      to,
+      subject: '🦉 EduMate — test d’envoi d’e-mail',
+      html,
+      text,
+      tag: 'admin-mail-test',
+    });
+    const durationMs = Date.now() - startedAt;
+
+    if (!result.ok) {
+      console.error(`[EduMate] E-mail de TEST échoué vers ${to} (${result.provider}) : ${result.error}`);
+      res.status(502).json({
+        ok: false,
+        provider: result.provider,
+        error: result.error ?? 'échec inconnu',
+        durationMs,
+        hint: /timeout|délai/i.test(result.error ?? '')
+          ? 'Connexion impossible : vérifie l’hôte, le port et — sur Render — le blocage des ports SMTP sortants.'
+          : /401|403|invalid|auth/i.test(result.error ?? '')
+            ? 'Clé d’API refusée ou expéditeur non vérifié chez le fournisseur.'
+            : 'Lis le détail ci-dessus, puis les journaux du serveur.',
+      });
+      return;
+    }
+
+    console.log(`[EduMate] E-mail de test envoyé à ${to} via ${result.provider} en ${durationMs} ms.`);
+    res.json({
+      ok: true,
+      to,
+      provider: result.provider,
+      from: diagnosis.from,
+      messageId: result.messageId ?? null,
+      durationMs,
+      remainingTests: Math.max(0, MAIL_TEST_MAX - mailTestWindow.count),
+    });
+  }),
+);
 
 adminRouter.get('/users', asyncHandler(async (req, res) => {
   const users = await listUsers();

@@ -60,6 +60,19 @@ services:
       - key: AUTH_RATE_LIMIT_MAX
         value: "300"
 
+      # --- « Mot de passe oublié » : expéditeur pré-configuré ---------------
+      # Ces deux valeurs ne sont PAS secrètes : elles sont versionnées ici pour
+      # que le Blueprint les applique tout seul. La CLÉ, elle, se saisit dans
+      # l'onglet Environment (voir plus bas).
+      - key: MAIL_FROM
+        value: EduMate <staffpub.ota@gmail.com>
+      - key: MAIL_REPLY_TO
+        value: staffpub.ota@gmail.com
+      # MAIL_PROVIDER est volontairement ABSENT : laissé vide, EduMate déduit le
+      # fournisseur du FORMAT de la clé (xkeysib-… → brevo, SG.… → sendgrid,
+      # re_… → resend). Une seule variable à ajouter, et le Blueprint ne risque
+      # pas d'écraser un choix fait dans l'onglet Environment.
+
       # --- Secret généré par Render (jamais stocké dans le dépôt) ---
       - key: SESSION_SECRET
         generateValue: true
@@ -74,28 +87,32 @@ services:
       # ADMIN_EMAIL              = ton@email.fr   (facultatif : le 1er compte
       #                             créé devient administrateur de toute façon)
       #
-      # --- « Mot de passe oublié » : envoi des e-mails (recommandé) ---------
-      # MAIL_PROVIDER            = brevo   (ou resend | sendgrid | mailgun |
-      #                             postmark | smtp)
+      # --- « Mot de passe oublié » : LA SEULE variable à ajouter ------------
       # MAIL_API_KEY             = xkeysib-xxxxxx
-      #   🔐 LA CLÉ SE SAISIT ICI, JAMAIS DANS LE CODE (mêmes règles que
-      #      AI_API_KEY : bloquée au push par GitHub, compromise à vie sinon).
-      # MAIL_FROM                = EduMate <no-reply@ton-domaine.fr>
-      #   Le domaine DOIT être vérifié chez le fournisseur, sinon les messages
-      #   partent en spam ou sont refusés.
-      # MAIL_REPLY_TO            = ton@email.fr   (facultatif)
+      #   🔐 SE SAISIT ICI, JAMAIS DANS LE CODE (mêmes règles que AI_API_KEY :
+      #      bloquée au push par GitHub, compromise à vie sinon).
+      #   MAIL_PROVIDER est inutile : le fournisseur est déduit du format de la
+      #   clé (xkeysib-… → brevo, SG.… → sendgrid, re_… → resend).
+      #   MAIL_FROM et MAIL_REPLY_TO sont déjà posés plus haut.
       #
-      #   Variante SMTP (Gmail / OVH / Infomaniak), sans MAIL_API_KEY :
-      #     MAIL_PROVIDER = smtp
-      #     SMTP_HOST     = smtp.gmail.com
-      #     SMTP_PORT     = 465
-      #     SMTP_SECURE   = true
-      #     SMTP_USER     = tonadresse@gmail.com
-      #     SMTP_PASS     = mot de passe d'APPLICATION (pas celui du compte)
+      # 🔴 SMTP NE FONCTIONNE PAS ICI. Depuis septembre 2025, les services web
+      #    Render du plan GRATUIT bloquent le trafic sortant vers les ports SMTP
+      #    25, 465 et 587 : un MAIL_PROVIDER=smtp parfaitement configuré expire
+      #    en silence, sans erreur explicite. Utilise une API HTTPS (Brevo,
+      #    SendGrid, Resend…). EduMate détecte ce piège et l'affiche au
+      #    démarrage ainsi que dans /admin → carte « E-mails ».
+      #    https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports
       #
-      #   Sans rien configurer, l'application tourne quand même : le lien de
+      # ⚠️ Expéditeur @gmail.com : tu ne peux pas authentifier ce domaine
+      #    (SPF/DKIM), donc une partie des messages arrivera en indésirables.
+      #    SendGrid permet de VÉRIFIER une adresse Gmail (lien de confirmation)
+      #    et s'en sort mieux que Brevo dans ce cas. Pour un envoi fiable, il
+      #    faut un domaine à toi : ~10 €/an, puis MAIL_FROM = EduMate
+      #    <no-reply@ton-domaine.fr> + les enregistrements DKIM du fournisseur.
+      #
+      #   Sans MAIL_API_KEY, l'application tourne quand même : le lien de
       #   réinitialisation est écrit dans Render → Logs, et /api/health affiche
-      #   mail.configured = false.
+      #   mail.configured = false. Test de configuration : /admin → « E-mails ».
       #
       # --- Récupérer un compte bloqué (mot de passe administrateur perdu) ---
       # Poser ces DEUX variables, redéployer, se connecter, puis les SUPPRIMER :

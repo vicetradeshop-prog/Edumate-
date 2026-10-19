@@ -12,6 +12,12 @@
  *   | `mailgun`     | Mailgun              | `key-...` + MAILGUN_DOMAIN| 100/jour (essai) |
  *   | `postmark`    | Postmark             | jeton serveur (UUID)      | 100/mois         |
  *   | `smtp`        | tout serveur SMTP    | SMTP_USER / SMTP_PASS     | selon l'hébergeur|
+ *
+ * 🔴 `smtp` est INUTILISABLE sur un service Render du plan gratuit : depuis
+ *    septembre 2025 Render bloque le trafic sortant vers les ports 25, 465 et
+ *    587, et la connexion expire sans erreur explicite. `diagnoseMailer()`
+ *    détecte cette combinaison et remonte l'avertissement au démarrage, dans
+ *    /api/admin/mail-status et dans le panneau /admin.
  *   | `log`         | journal du serveur   | —                         | illimité         |
  *
  * Le mode `smtp` est le seul à charger une dépendance (`nodemailer`) : elle est
@@ -24,7 +30,7 @@
  * Render) et l'API renvoie `sent: false`. L'application ne plante jamais et ne
  * bloque jamais l'élève : la route répond 200 dans tous les cas.
  */
-import { config } from './config.js';
+import { RENDER_BLOCKED_SMTP_PORTS, config, isRenderHost } from './config.js';
 
 /** Fournisseurs d'envoi reconnus. */
 export type MailProviderId = 'none' | 'log' | 'resend' | 'brevo' | 'sendgrid' | 'mailgun' | 'postmark' | 'smtp';
@@ -98,6 +104,98 @@ export function mailerStatus(): { provider: MailProviderId; configured: boolean;
     configured: hasMailer(),
     from: parseFrom(config.mail.from).address || '',
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Diagnostic actionnable                                             */
+/* ------------------------------------------------------------------ */
+
+export interface MailerDiagnosis {
+  provider: MailProviderId;
+  /** Un vrai prestataire est-il prêt à envoyer ? */
+  configured: boolean;
+  from: string;
+  /** Variables manquantes, nommées exactement comme dans Render. */
+  missing: string[];
+  /** Pièges détectés (SMTP sur Render, expéditeur non professionnel…). */
+  warnings: string[];
+  /** Ce qui se passe CONCRÈTEMENT quand un élève demande un lien. */
+  behaviour: string;
+}
+
+/**
+ * Explique précisément pourquoi les e-mails partent — ou ne partent pas.
+ *
+ * Nécessaire parce que `/api/auth/forgot` répond volontairement la même chose
+ * que le compte existe ou non : sans ce diagnostic, une configuration
+ * incomplète serait invisible et l'administrateur verrait seulement « aucun
+ * élève ne reçoit son lien ».
+ *
+ * Utilisé par la ligne de démarrage, par `/api/health` et par la carte
+ * « E-mails » du panneau d'administration.
+ */
+export function diagnoseMailer(): MailerDiagnosis {
+  const current = provider();
+  const missing: string[] = [];
+  const warnings: string[] = [];
+  const from = parseFrom(config.mail.from).address;
+
+  if (current === 'smtp') {
+    if (!config.mail.smtp.host) missing.push('SMTP_HOST');
+    if (!config.mail.smtp.user) missing.push('SMTP_USER');
+    if (!config.mail.smtp.pass) missing.push('SMTP_PASS (mot de passe d’application avec Gmail)');
+    /*
+     * 🔴 Piège majeur : depuis septembre 2025, les services web Render du plan
+     * gratuit bloquent le trafic SORTANT vers les ports SMTP 25, 465 et 587.
+     * La connexion expire sans message explicite — d'où cet avertissement
+     * proactif plutôt qu'un diagnostic après coup.
+     */
+    if (isRenderHost && RENDER_BLOCKED_SMTP_PORTS.includes(config.mail.smtp.port as (typeof RENDER_BLOCKED_SMTP_PORTS)[number])) {
+      warnings.push(
+        `Render bloque le port SMTP sortant ${config.mail.smtp.port} sur le plan gratuit (25, 465 et 587 sont fermés) : ` +
+          'les envois expireront sans erreur explicite. Passe par une API HTTPS — MAIL_PROVIDER=brevo + MAIL_API_KEY.',
+      );
+    }
+  } else if (current !== 'none' && current !== 'log') {
+    if (!config.mail.apiKey) missing.push('MAIL_API_KEY');
+    if (!from) missing.push('MAIL_FROM');
+    if (current === 'mailgun' && !config.mail.mailgunDomain) missing.push('MAILGUN_DOMAIN');
+    if (from && /(gmail\.com|outlook\.com|hotmail\.fr|yahoo\.fr)$/i.test(from)) {
+      warnings.push(
+        `Expéditeur « ${from} » : tu ne peux pas authentifier ce domaine (SPF/DKIM), les messages auront donc ` +
+          'un taux de rejet plus élevé et finiront souvent en indésirables. Pour un envoi fiable, utilise un domaine ' +
+          'qui t’appartient (voir docs/MOT-DE-PASSE-OUBLIE.md).',
+      );
+    }
+  }
+
+  const configured = hasMailer() && missing.length === 0;
+  const behaviour = configured
+    ? `Les liens partent par ${current} depuis ${from || '(expéditeur à préciser)'}.`
+    : current === 'none'
+      ? 'Aucun e-mail n’est envoyé et rien n’est journalisé : le parcours est inopérant.'
+      : 'Aucun e-mail ne part : chaque lien demandé est écrit dans les JOURNAUX du serveur (Render → Logs).';
+
+  return { provider: current, configured, from, missing, warnings, behaviour };
+}
+
+/**
+ * Avertissement de démarrage quand SMTP est configuré sur Render.
+ *
+ * Remonte le piège AVANT le premier échec : sans cela, l'administrateur croit
+ * sa configuration bonne (toutes les variables sont justes) et découvre des
+ * semaines plus tard que personne ne reçoit rien.
+ */
+export function warnMailerPitfalls(): void {
+  const diagnosis = diagnoseMailer();
+  for (const warning of diagnosis.warnings) console.warn(`[EduMate] ⚠️  E-mails : ${warning}`);
+  if (!diagnosis.configured && diagnosis.provider !== 'none') {
+    console.warn(
+      diagnosis.missing.length
+        ? `[EduMate] ⚠️  E-mails incomplets — variable(s) manquante(s) : ${diagnosis.missing.join(', ')}.`
+        : '[EduMate] ⚠️  Aucun fournisseur d’e-mails actif : les liens resteront dans les journaux.',
+    );
+  }
 }
 
 /** Échappe le HTML injecté dans le gabarit (le prénom vient de la base). */

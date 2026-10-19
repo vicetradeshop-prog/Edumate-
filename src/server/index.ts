@@ -38,7 +38,7 @@ import { feedRouter } from './routes/feed.js';
 import { planningRouter } from './routes/planning.js';
 import { findUserByEmail, setUserPassword, updateUser } from './lib/store.js';
 import { hashPassword } from './lib/auth.js';
-import { mailerStats, mailerStatus } from './lib/mailer.js';
+import { diagnoseMailer, mailerStats, mailerStatus, warnMailerPitfalls } from './lib/mailer.js';
 import { revokeResetTokens, sweepExpiredResetTokens } from './lib/passwordReset.js';
 import { passwordIssues } from './lib/validate.js';
 
@@ -425,6 +425,7 @@ export async function startServer(): Promise<void> {
 
   const app = createApp();
   const mail = mailerStatus();
+  const diagnose = diagnoseMailer();
   const server = app.listen(config.port, () => {
     const lines = [
       '',
@@ -436,7 +437,7 @@ export async function startServer(): Promise<void> {
       `     E-mails         : ${
         mail.configured
           ? `${mail.provider} ✔ (${mail.from})`
-          : 'non configuré — les liens de réinitialisation partent dans les LOGS'
+          : `INACTIF (${mail.provider}) — les liens partent dans les LOGS`
       }`,
       `     Compte démo     : ${config.security.allowDemoAccount ? 'activé (partagé)' : 'désactivé'}`,
       `     Catalogue       : ${catalog.stats.topics} sujets / ${catalog.stats.playable} jouables`,
@@ -444,11 +445,19 @@ export async function startServer(): Promise<void> {
       '',
     ];
     console.log(lines.join('\n'));
+    /*
+     * Diagnostic e-mail : ce qui manque, et surtout les PIÈGES (SMTP sur Render,
+     * où les ports 25/465/587 sont fermés depuis septembre 2025 — une
+     * configuration par ailleurs parfaite s'y solde par un timeout muet).
+     */
+    warnMailerPitfalls();
     if (!mail.configured) {
       console.warn(
-        '  ⚠️  « Mot de passe oublié » fonctionne, mais aucun e-mail ne part : renseigne\n' +
-          '     MAIL_PROVIDER + MAIL_API_KEY (ou SMTP_HOST/USER/PASS) dans Render → Environment.\n' +
-          '     En attendant, chaque lien demandé est écrit dans ces journaux (onglet Logs).\n',
+        '  ⚠️  « Mot de passe oublié » fonctionne, mais AUCUN e-mail ne part.\n' +
+          `     ${diagnose.behaviour}\n` +
+          '     À renseigner dans Render → Environment : MAIL_PROVIDER + MAIL_API_KEY\n' +
+          '     (sur le plan gratuit Render, évite MAIL_PROVIDER=smtp : ports 25/465/587 bloqués).\n' +
+          '     Test de configuration : panneau /admin → carte « E-mails ».\n',
       );
     }
     if (getStartupError()) console.warn(`  ⚠️  ${getStartupError()}\n`);

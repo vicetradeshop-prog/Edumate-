@@ -47,6 +47,7 @@ Thumbs.db
 *.swp
 smoke-server.log
 e2e-db-server.log
+mailer-test-server.log
 
 # Tests de rendu (bundle généré)
 dist-test/

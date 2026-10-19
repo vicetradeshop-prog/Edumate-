@@ -14,9 +14,10 @@ Ce document couvre deux situations distinctes :
 - [1. Parcours élève : mot de passe oublié](#1-parcours-élève-mot-de-passe-oublié)
 - [2. URGENCE : récupérer un compte administrateur](#2-urgence-récupérer-un-compte-administrateur)
 - [3. Configurer l'envoi des e-mails](#3-configurer-lenvoi-des-e-mails)
-  - [Brevo (recommandé, 300 e-mails/jour gratuits)](#brevo-recommandé-300-e-mailsjour-gratuits)
+  - [🔴 SMTP : bloqué sur Render (plan gratuit)](#-smtp--bloqué-sur-render-plan-gratuit)
+  - [Cas concret : envoyer depuis une adresse @gmail.com](#cas-concret--je-veux-envoyer-depuis-une-adresse-gmailcom)
+  - [Brevo (300 e-mails/jour gratuits)](#brevo-300-e-mailsjour-gratuits)
   - [Resend (100 e-mails/jour gratuits)](#resend-100-e-mailsjour-gratuits)
-  - [SMTP avec Gmail / OVH / Infomaniak](#smtp-avec-gmail--ovh--infomaniak)
   - [Autres fournisseurs](#autres-fournisseurs)
 - [4. Vérifier que les e-mails partent vraiment](#4-vérifier-que-les-e-mails-partent-vraiment)
 - [5. Comment ça marche sous le capot](#5-comment-ça-fonctionne-sous-le-capot)
@@ -119,7 +120,46 @@ voie de secours qui ne dépend d'aucun e-mail.
 
 EduMate parle directement aux API des fournisseurs, **sans dépendance** (le `fetch` natif de Node 20). Seul le mode `smtp` charge `nodemailer`.
 
-### Brevo (recommandé, 300 e-mails/jour gratuits)
+> ### 🔴 À lire en premier : SMTP est bloqué sur Render
+>
+> **Depuis septembre 2025, les services web Render du plan gratuit bloquent le trafic sortant vers les ports SMTP 25, 465 et 587.**
+>
+> Une configuration SMTP par ailleurs parfaite (`smtp.gmail.com`, mot de passe d'application valide) s'y traduit par un **timeout silencieux**, sans message d'erreur explicite. C'est le piège le plus coûteux en temps de toute cette page.
+>
+> - Source : [changelog Render](https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports)
+> - **Sur Render, utilise une API HTTPS** (Brevo, SendGrid, Resend…) : elles passent par le port **443**, jamais bloqué.
+> - Le mode `smtp` reste pertinent en **local**, sur un **VPS**, ou sur un plan Render **payant**.
+> - EduMate **détecte** cette combinaison (fournisseur `smtp` + hébergement Render + port concerné) et l'affiche au démarrage, dans `/api/admin/mail-status` et en bandeau rouge dans `/admin`.
+
+### Cas concret : je veux envoyer depuis une adresse @gmail.com
+
+Point le plus contre-intuitif de toute la configuration, donc autant l'écrire clairement : **une adresse e-mail ne suffit pas à envoyer des e-mails.** Il faut un prestataire qui relaie les messages, et ce prestataire doit être *autorisé* à parler au nom de ton adresse.
+
+Or **tu ne possèdes pas `gmail.com`** : impossible d'y ajouter les enregistrements SPF/DKIM qui prouvent ton identité. Les messages partent quand même, mais une partie arrive en **indésirables**.
+
+| Solution | Coût | Délivrabilité | Verdict |
+|---|---|---|---|
+| **SendGrid** + *Single Sender Verification* de l'adresse Gmail | 0 € (100/jour) | 🟠 correcte | **Meilleur compromis sans domaine** : SendGrid envoie un lien de vérification *sur la boîte Gmail*, ce qui légitime l'expéditeur |
+| **Brevo** avec `MAIL_FROM` Gmail | 0 € (300/jour) | 🟠 moyenne | Fonctionne, mais expéditeur non authentifié → spam plus fréquent |
+| **Domaine à toi** + Brevo/Resend | ~10 €/an | 🟢 excellente | La vraie solution : SPF/DKIM/DMARC alignés |
+| SMTP Gmail | 0 € | 🔴 **nulle sur Render** | Ports bloqués |
+
+> 💡 Un domaine coûte **8 à 12 €/an** (OVH, Gandi, Porkbun, Cloudflare). Vérifie d'abord qu'il est libre : un nom non enregistré n'appartient à personne tant qu'il n'est pas acheté. Il sert aussi à donner au site une adresse propre (`edumate.tondomaine.com`) au lieu de `…onrender.com`.
+
+**SendGrid avec une adresse Gmail, pas à pas :**
+
+1. <https://sendgrid.com> → compte gratuit.
+2. **Settings → Sender Authentication → Verify a Single Sender**.
+3. Renseigne ton adresse Gmail : SendGrid envoie un lien de vérification **sur cette boîte** — clique dessus.
+4. **Settings → API Keys → Create API Key** (droit *Mail Send*). La clé commence par `SG.`.
+5. Dans Render → **Environment**, ajoute **une seule** variable :
+   ```
+   MAIL_API_KEY = SG.xxxxxxxxxxxxxxxxxxxx
+   ```
+   `MAIL_PROVIDER` est déduit du préfixe `SG.`, et `MAIL_FROM` / `MAIL_REPLY_TO` sont déjà posés par `render.yaml`.
+6. Vérifie : `/admin` → carte « E-mails » → **Envoyer un e-mail de test**.
+
+### Brevo (300 e-mails/jour gratuits)
 
 Brevo (ex-Sendinblue) est le choix le plus simple depuis la France : interface en français, 300 e-mails/jour gratuits, aucune carte bancaire.
 
@@ -149,9 +189,9 @@ MAIL_API_KEY  = re_xxxxxxxxxxxxxxxxxxxx
 MAIL_FROM     = EduMate <no-reply@ton-domaine.fr>
 ```
 
-### SMTP avec Gmail / OVH / Infomaniak
+### 🔴 SMTP : bloqué sur Render (plan gratuit)
 
-Utile quand tu n'as pas de domaine : ton adresse personnelle suffit.
+**Ne fonctionne pas sur un service Render gratuit** — ports sortants 25/465/587 fermés, voir l'encadré en tête de cette section. La configuration ci-dessous reste valable **en local**, sur un **VPS**, ou sur un plan Render **payant**.
 
 **Avec Gmail** — le mot de passe du compte **ne fonctionne pas**, il faut un *mot de passe d'application* :
 
@@ -334,7 +374,7 @@ JWT.pv                   : la version au moment de l'émission
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `MAIL_PROVIDER` | *(vide = auto)* | `resend` `brevo` `sendgrid` `mailgun` `postmark` `smtp` `log` `none` |
+| `MAIL_PROVIDER` | *(vide = auto)* | `resend` `brevo` `sendgrid` `mailgun` `postmark` `smtp` 🔴 *(bloqué sur Render gratuit)* `log` `none` |
 | `MAIL_API_KEY` | — | clé du fournisseur |
 | `MAIL_FROM` | `EduMate <no-reply@edumate.local>` | expéditeur |
 | `MAIL_FROM_NAME` | `EduMate` | nom de l'expéditeur |
@@ -369,6 +409,16 @@ Clé révoquée, ou domaine expéditeur non vérifié. Chez Brevo et Resend, l'a
 ### `HTTP 422` de Brevo
 
 `MAIL_FROM` n'est pas un expéditeur déclaré. Va dans **Expéditeurs, Domaines & DNS** et ajoute-le.
+
+### SMTP : timeout silencieux, rien dans les logs
+
+🔴 **Tu es sur Render (plan gratuit)** : les ports sortants 25, 465 et 587 y sont fermés depuis septembre 2025. Aucun réglage SMTP ne peut contourner cela. Passe par une API HTTPS (`MAIL_API_KEY` + Brevo/SendGrid/Resend) : port 443, jamais bloqué.
+
+Le diagnostic automatique le signale déjà : `/admin` → carte « E-mails » affiche un bandeau rouge, et le démarrage du serveur écrit `[EduMate] ⚠️ E-mails : Render bloque le port SMTP sortant …`.
+
+### Les e-mails arrivent en indésirables
+
+Expéditeur `@gmail.com` : tu ne peux pas publier de SPF/DKIM pour un domaine qui ne t'appartient pas, donc une partie des messages est filtrée. Deux issues — SendGrid avec *Single Sender Verification* de l'adresse Gmail (correct), ou un domaine à toi avec Brevo/Resend (fiable).
 
 ### Erreur SMTP `Invalid login` / `535`
 
