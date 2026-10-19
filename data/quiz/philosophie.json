@@ -1,0 +1,279 @@
+{
+ "banks": [
+  {
+   "topic": "philosophie-terminale-methode-dissertation",
+   "questions": [
+    {
+     "prompt": "Que faut-il faire en tout premier lieu face à un sujet de dissertation ?",
+     "options": [
+      "Analyser chaque terme du sujet et repérer le présupposé ou le paradoxe",
+      "Chercher immédiatement un plan",
+      "Recopier le cours correspondant",
+      "Rédiger l’introduction"
+     ],
+     "answer": 0,
+     "explanation": "L’analyse des termes (définitions, distinctions, enjeux) fait apparaître la difficulté du sujet et donc la problématique.",
+     "skill": "Analyse du sujet",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle est la différence entre une question de cours et un problème philosophique ?",
+     "options": [
+      "Le problème naît d’une difficulté réelle : deux réponses également défendables s’opposent",
+      "Il n’y a aucune différence",
+      "La question de cours est plus difficile",
+      "Le problème philosophique appelle une réponse scientifique"
+     ],
+     "answer": 0,
+     "explanation": "Une dissertation ne récite pas : elle construit une réponse à une difficulté contenue dans le sujet.",
+     "skill": "Problématisation",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Comment formuler une bonne problématique ?",
+     "options": [
+      "Sous forme d’alternative : le sujet invite-t-il à affirmer X, alors que Y semble vrai aussi ?",
+      "Par une question fermée appelant oui ou non",
+      "En reprenant le libellé du sujet",
+      "Par une citation d’auteur"
+     ],
+     "answer": 0,
+     "explanation": "La problématique explicite la tension : elle met en balance deux thèses également fondées.",
+     "skill": "Problématisation",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quel est le rôle d’une référence philosophique dans une dissertation ?",
+     "options": [
+      "Appuyer un argument précis, pas décorer le devoir",
+      "Remplacer l’argumentation",
+      "Montrer l’étendue de ses connaissances",
+      "Ouvrir chaque paragraphe"
+     ],
+     "answer": 0,
+     "explanation": "Une référence est convoquée pour trancher une difficulté : on l’expose, on la discute, on montre ce qu’elle apporte au raisonnement.",
+     "skill": "Usage des références",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que doit faire la troisième partie d’un plan dialectique réussi ?",
+     "options": [
+      "Dépasser l’opposition en déplaçant ou en redéfinissant la question",
+      "Répéter la thèse initiale",
+      "Ajouter des exemples supplémentaires",
+      "Conclure le devoir"
+     ],
+     "answer": 0,
+     "explanation": "Le dépassement n’est pas un compromis mou : il révèle une distinction conceptuelle qui résout la tension initiale.",
+     "skill": "Dépassement",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle erreur consiste à juxtaposer des opinions sans les justifier ?",
+     "options": [
+      "Le doxographique : exposer des avis sans les discuter",
+      "La digression",
+      "Le hors-sujet",
+      "La paraphrase"
+     ],
+     "answer": 0,
+     "explanation": "La philosophie exige des raisons : chaque position doit être argumentée, puis évaluée.",
+     "skill": "Argumentation",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment conclure une dissertation philosophique ?",
+     "options": [
+      "Bilan du parcours, réponse nette à la problématique, ouverture éventuelle",
+      "En résumant chaque partie mot à mot",
+      "En posant une nouvelle question sans bilan",
+      "En citant un auteur célèbre"
+     ],
+     "answer": 0,
+     "explanation": "La conclusion ferme le problème : elle rappelle la réponse obtenue et peut ouvrir sur un enjeu voisin, sans le substituer au bilan.",
+     "skill": "Conclusion",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est l’intérêt d’un exemple concret dans une dissertation ?",
+     "options": [
+      "Éprouver la validité d’une thèse sur un cas précis",
+      "Remplir la copie",
+      "Illustrer sans analyser",
+      "Remplacer un argument"
+     ],
+     "answer": 0,
+     "explanation": "Un bon exemple est analysé : il montre ce que la thèse explique ou ce qu’elle échoue à expliquer.",
+     "skill": "Usage de l’exemple",
+     "difficulty": "moyen"
+    }
+   ]
+  },
+  {
+   "topic": "philosophie-terminale-methode-explication",
+   "questions": [
+    {
+     "prompt": "Quelle est la première étape d’une explication de texte philosophique ?",
+     "options": [
+      "Identifier le thème, la thèse et le problème du texte",
+      "Chercher des références extérieures",
+      "Résumer le texte paragraphe par paragraphe",
+      "Rédiger la conclusion"
+     ],
+     "answer": 0,
+     "explanation": "Avant d’expliquer, on dégage : de quoi parle le texte (thème), ce qu’il affirme (thèse), à quelle question il répond (problème).",
+     "skill": "Lecture méthodique",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Qu’est-ce qu’expliquer un texte, par opposition à le paraphraser ?",
+     "options": [
+      "Élucider les articulations, les concepts et les enjeux du raisonnement",
+      "Redire le texte avec d’autres mots",
+      "Donner son avis sur le texte",
+      "Réduire le texte à une citation"
+     ],
+     "answer": 0,
+     "explanation": "Expliquer, c’est montrer comment le texte avance : définitions, oppositions, exemples, réfutations, conclusions.",
+     "skill": "Explication",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Peut-on discuter la thèse de l’auteur dans une explication de texte ?",
+     "options": [
+      "Oui, dans l’intérêt du texte et à partir d’objections précises",
+      "Non, jamais",
+      "Oui, mais seulement en conclusion",
+      "Non, sauf si l’auteur est connu"
+     ],
+     "answer": 0,
+     "explanation": "La discussion n’est pas une opinion : elle confronte la thèse à une objection argumentée ou à une autre position philosophique.",
+     "skill": "Discussion",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Comment dégager les mouvements d’un texte ?",
+     "options": [
+      "En suivant les connecteurs logiques et les changements de fonction du discours",
+      "En comptant les paragraphes",
+      "En repérant les citations",
+      "En suivant l’ordre alphabétique des notions"
+     ],
+     "answer": 0,
+     "explanation": "Les mouvements correspondent aux étapes du raisonnement : poser, argumenter, réfuter, illustrer, conclure.",
+     "skill": "Structure du texte",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Que faut-il faire des notions techniques rencontrées dans un texte ?",
+     "options": [
+      "Les définir précisément et montrer leur rôle dans l’argumentation",
+      "Les remplacer par des synonymes courants",
+      "Les ignorer",
+      "Les citer sans les expliquer"
+     ],
+     "answer": 0,
+     "explanation": "Un concept philosophique (nature, culture, liberté…) porte la thèse : son sens dans le texte doit être explicité.",
+     "skill": "Analyse conceptuelle",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle organisation attend-on d’une explication de texte au bac ?",
+     "options": [
+      "Introduction, explication ordonnée suivant les mouvements, conclusion",
+      "Une seule partie",
+      "Un résumé suivi d’un avis",
+      "Une liste de citations"
+     ],
+     "answer": 0,
+     "explanation": "L’épreuve dure 4 heures ; l’explication suit le texte dans son ordre en dégageant sa logique propre.",
+     "skill": "Organisation de l’épreuve",
+     "difficulty": "facile"
+    }
+   ]
+  },
+  {
+   "topic": "philosophie-terminale-methode-problematique",
+   "questions": [
+    {
+     "prompt": "Comment reconnaître qu’un sujet contient un problème philosophique ?",
+     "options": [
+      "Il oppose deux réponses également justifiables ou contient un présupposé discutable",
+      "Il est formulé sous forme de question",
+      "Il contient un mot difficile",
+      "Il fait référence à un auteur"
+     ],
+     "answer": 0,
+     "explanation": "Le problème naît d’une alternative réelle : sans tension, il n’y a qu’une question de définition ou de fait.",
+     "skill": "Problématisation",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que signifie « discuter un présupposé » ?",
+     "options": [
+      "Interroger ce que le sujet tient pour acquis sans le justifier",
+      "Contredire systématiquement le sujet",
+      "Ajouter une hypothèse personnelle",
+      "Changer les termes du sujet"
+     ],
+     "answer": 0,
+     "explanation": "Exemple : « la technique nous rend-elle plus libres ? » présuppose que la liberté peut se mesurer ; discuter, c’est examiner ce présupposé.",
+     "skill": "Présupposés",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle distinction conceptuelle est souvent utile ?",
+     "options": [
+      "Celle qui sépare deux sens d’un même mot dans le sujet",
+      "Celle qui oppose deux auteurs",
+      "Celle qui sépare le passé du présent",
+      "Celle qui oppose science et opinion"
+     ],
+     "answer": 0,
+     "explanation": "Beaucoup de sujets se débloquent en distinguant deux acceptions d’un terme (ex. « libre » au sens juridique et au sens métaphysique).",
+     "skill": "Distinctions conceptuelles",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quel est l’objectif de l’alternative initiale ?",
+     "options": [
+      "Exposer les deux thèses que le sujet rend également plausibles",
+      "Donner immédiatement la réponse",
+      "Citer deux auteurs opposés",
+      "Annoncer le plan en trois temps"
+     ],
+     "answer": 0,
+     "explanation": "L’alternative met en évidence la difficulté : « On peut soutenir X…, mais Y semble tout aussi fondé… »",
+     "skill": "Alternative",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel écueil consiste à transformer le sujet en récitation de cours ?",
+     "options": [
+      "Le placage de cours",
+      "Le hors-sujet",
+      "La paraphrase",
+      "La digression"
+     ],
+     "answer": 0,
+     "explanation": "Le cours doit être mobilisé pour répondre à la question posée, jamais récité comme une fin en soi.",
+     "skill": "Écueils",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment vérifier qu’une problématique est bien construite ?",
+     "options": [
+      "Elle contient une tension, elle est née du sujet, et un plan peut y répondre",
+      "Elle est courte",
+      "Elle cite un auteur",
+      "Elle commence par « pourquoi »"
+     ],
+     "answer": 0,
+     "explanation": "Test pratique : si deux personnes raisonnables peuvent répondre différemment, la problématique est authentiquement philosophique.",
+     "skill": "Contrôle de la problématique",
+     "difficulty": "difficile"
+    }
+   ]
+  }
+ ]
+}

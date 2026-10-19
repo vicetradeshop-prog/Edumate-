@@ -1,0 +1,1104 @@
+/* ==========================================================================
+   EduMate — Identité « Liquid Glass » (v3.0)
+   --------------------------------------------------------------------------
+   Cette feuille est chargée EN DERNIER (voir main.tsx) : elle habille les
+   composants existants sans jamais toucher à leur structure ni à leur
+   logique. Tout est piloté par les variables posées dans base.css
+   (--glass-bg, --glass-border, --glass-highlight, --accent-violet…).
+
+   Deux règles d'or (pièges documentés dans le projet) :
+
+   1. Le `backdrop-filter` ne va JAMAIS sur un élément qui contient du texte
+      ni sur un élément animé par `transform`/`opacity` : il est posé sur un
+      pseudo-élément `::before` en `z-index: -1` (le parent crée son propre
+      contexte d'empilement via `isolation: isolate`). Un ancêtre transformé
+      crée un « backdrop root » qui coupe l'échantillonnage du flou : c'est
+      pourquoi les transitions de page se terminent sur `transform: none`
+      (les keyframes ci-dessous) et n'utilisent pas `will-change`.
+
+   2. Les surfaces qui BOUGENT (modale, toasts, panneau de recherche) ont un
+      fond teinté franc SANS backdrop-filter : le flou d'un élément en cours
+      d'animation est coûteux et sujet aux artefacts (texte flouté sur
+      Windows, déjà observé sur ce projet).
+
+   Accessibilité & préférences :
+   - `prefers-reduced-motion` ET `[data-animations='off']` (réglage EduMate)
+     coupent toutes les animations ajoutées ici (garde globale en fin de
+     fichier) ;
+   - `[data-fx='low']` (petites machines, voir lib/fx.ts) réduit les flous et
+     supprime les effets de balayage ;
+   - en impression, le fond vivant disparaît et les cartes redeviennent
+     opaques.
+   ========================================================================== */
+
+/* Angle animable pour l'anneau iridescent des boutons « liquid ».
+   Sans support de @property (navigateurs anciens), la conique reste fixe :
+   le dégradé s'affiche quand même, il ne tourne simplement pas. */
+@property --liquid-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ============================ Fond « Liquid Glass » ======================= */
+
+/* Le fond vivant (canvas WebGL + aurora CSS) est monté dans #root par
+   <LiquidGlassBackground />. Il passe DERRIÈRE tout le contenu :
+   #root crée un contexte d'empilement (z-index: 1) et .liquid-bg se place
+   en z-index: -1 — au-dessus du dégradé du <body>, sous l'application. */
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.liquid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none; /* le fond n'intercepte JAMAIS les clics */
+  overflow: hidden;
+}
+
+/* Aurora CSS : socle permanent (dégradé du body) et repli complet quand le
+   WebGL est indisponible ou désactivé (mouvement réduit, petite machine). */
+.liquid-bg__css {
+  position: absolute;
+  inset: -10%;
+  background:
+    radial-gradient(58% 46% at 14% 8%, color-mix(in srgb, var(--accent-violet) 26%, transparent), transparent 68%),
+    radial-gradient(52% 40% at 86% 4%, color-mix(in srgb, var(--accent-magenta) 16%, transparent), transparent 66%),
+    radial-gradient(48% 42% at 72% 96%, color-mix(in srgb, var(--accent-pink) 13%, transparent), transparent 64%),
+    radial-gradient(44% 38% at 28% 72%, color-mix(in srgb, var(--accent-blue) 10%, transparent), transparent 66%);
+  opacity: 0.85;
+}
+
+[data-theme='sombre'] .liquid-bg__css {
+  background:
+    radial-gradient(60% 48% at 12% 6%, rgba(124, 58, 237, 0.3), transparent 62%),
+    radial-gradient(54% 44% at 88% 2%, rgba(217, 70, 239, 0.17), transparent 60%),
+    radial-gradient(50% 46% at 74% 100%, rgba(233, 61, 136, 0.14), transparent 62%),
+    radial-gradient(46% 40% at 26% 64%, rgba(37, 99, 235, 0.11), transparent 64%);
+  opacity: 1;
+}
+
+/* Respiration très lente de l'aurora quand le WebGL n'est pas actif : le fond
+   reste vivant sans GPU. (transform sur un décor : aucun texte dedans.) */
+[data-fx-background='css'] .liquid-bg__css {
+  animation: aurora-drift 30s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  from { transform: translate3d(-1.6%, -1.2%, 0) scale(1.02) rotate(0.4deg); }
+  to { transform: translate3d(1.6%, 1.4%, 0) scale(1.07) rotate(-0.4deg); }
+}
+
+/* Canvas WebGL : fondu enchaîné à la première image rendue (jamais de flash
+   noir). data-revealed est posé par LiquidGlassBackground. */
+.liquid-bg__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+
+.liquid-bg[data-revealed='true'] .liquid-bg__canvas {
+  opacity: 1;
+}
+
+/* Quand le fond 3D est actif, les « blobs » CSS de la landing s'effacent pour
+   ne pas faire double emploi avec la simulation. */
+[data-fx-background='webgl'] .landing__blob {
+  opacity: 0.16;
+}
+
+/* ============================== Cartes : verre ============================== */
+
+/*
+ * La carte devient une plaque de verre :
+ *  - l'élément lui-même est TRANSPARENT (texte jamais dans un élément flouté),
+ *  - ::before porte le teint + le backdrop-filter (z-index: -1, l'élément est
+ *    déjà position:relative et passe en isolation: isolate),
+ *  - ::after porte le reflet diagonal + la lumière qui suit le curseur
+ *    (--mx/--my posés par lib/fx.ts, classe .is-lit au survol).
+ */
+.card {
+  background: transparent;
+  isolation: isolate;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 -1px 0 color-mix(in srgb, var(--glass-edge) 40%, transparent);
+  pointer-events: none;
+}
+
+/* Reflet « verre poli » : diagonale fixe + halo suivant le curseur. */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), var(--glass-pointer-light), transparent 62%),
+    linear-gradient(118deg, transparent 24%, color-mix(in srgb, var(--glass-highlight) 26%, transparent) 47%, transparent 58%);
+  opacity: 0.5;
+  transition: opacity var(--ed-t);
+  pointer-events: none;
+}
+
+.card--hover:hover,
+.card.is-lit {
+  border-color: color-mix(in srgb, var(--accent-violet) 42%, var(--glass-border));
+}
+
+.card.is-lit::after {
+  opacity: 1;
+}
+
+.card--hover:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    var(--glass-shadow),
+    0 14px 34px color-mix(in srgb, var(--glass-glow) 55%, transparent);
+}
+
+/* Navigateurs sans backdrop-filter : on épaissit le teint pour garder le
+   contraste (le verre devient « dépoli opaque »). */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .card::before,
+  .sidebar::before,
+  .topbar::before {
+    background: var(--glass-bg-strong);
+  }
+}
+
+/* Variante « GlassCard » (composant ui/GlassCard.tsx) : liseré iridescent
+   discret au survol + reflet un peu plus marqué. */
+.card--glass:hover {
+  border-color: color-mix(in srgb, var(--accent-magenta) 38%, var(--glass-border));
+  box-shadow:
+    var(--glass-shadow),
+    0 16px 40px color-mix(in srgb, var(--accent-violet) 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--glass-highlight) 35%, transparent);
+}
+
+/* Inclinaison 3D légère (lib/fx.ts pose --rx/--ry au survol, pointeur fin
+   uniquement). Ne s'applique qu'au survol : au repos l'élément n'a AUCUN
+   transform, sinon le backdrop-filter de ::before serait coupé. */
+@media (hover: hover) and (pointer: fine) {
+  [data-tilt]:hover {
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform var(--ed-t-fast) linear;
+  }
+  [data-tilt] {
+    transition: transform var(--ed-t-slow) ease-out;
+  }
+}
+
+/* Panneau « GlassPanel » (composant ui/GlassPanel.tsx) : grande surface
+   vitrée avec en-tête. Même architecture que .card (verre en ::before,
+   texte jamais dans le calque flouté). */
+.glass-panel {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--ed-radius-lg);
+  padding: calc(var(--ed-space-5) * var(--ed-density));
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  pointer-events: none;
+}
+
+.glass-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--ed-space-4);
+}
+
+.glass-panel__title {
+  font-family: var(--ed-font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tuiles cliquables : ::before est le MÊME pseudo-élément que celui de
+   .card (les tuiles portent `card tile`) — on neutralise l'ancienne bande
+   latérale et on la remplace par un liseré interne (inset shadow) qui
+   s'épaissit au survol. */.tile {
+  box-shadow:
+    inset 4px 0 0 0 var(--tile-color, var(--ed-primary)),
+    var(--glass-shadow);
+}
+
+.tile:hover {
+  box-shadow:
+    inset 7px 0 0 0 var(--tile-color, var(--ed-primary)),
+    var(--glass-shadow),
+    0 14px 34px color-mix(in srgb, var(--tile-color, var(--accent-violet)) 22%, transparent);
+}
+
+.tile::before {
+  /* Hérite du verre de .card::before ; on s'assure que l'ancienne règle
+     « bande 5 px » ne laisse aucune trace. */
+  inset: 0;
+  width: auto;
+  background: var(--glass-bg);
+  opacity: 1;
+}
+
+.tile__icon {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 60%, transparent),
+    0 6px 16px color-mix(in srgb, var(--tile-color, var(--accent-violet)) 25%, transparent);
+}
+
+/* ================================ Boutons ================================= */
+
+/*
+ * Boutons : teint translucide SANS backdrop-filter (petits éléments, souvent
+ * en mouvement — le flou y est coûteux pour un gain minime). Le verre est
+ * suggéré par le dégradé, le liseré clair en haut et la lumière curseur.
+ */
+.btn {
+  --btn-bg: var(--glass-btn-bg);
+  --btn-bd: var(--glass-border);
+  border-width: 1px;
+  box-shadow:
+    var(--ed-shadow-sm),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 55%, transparent);
+}
+
+/* Lumière qui suit le curseur (posée par lib/fx.ts : --mx/--my + .is-lit). */
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(200px circle at var(--mx, 50%) var(--my, 50%), var(--glass-pointer-light), transparent 65%);
+  opacity: 0;
+  transition: opacity var(--ed-t-fast);
+  pointer-events: none;
+}
+
+.btn.is-lit::after {
+  opacity: 1;
+}
+
+.btn--primary {
+  --btn-bg: linear-gradient(135deg, var(--accent-violet-deep) 0%, var(--accent-violet) 48%, var(--accent-magenta) 120%);
+  --btn-fg: #fff;
+  --btn-bd: color-mix(in srgb, #fff 32%, transparent);
+  box-shadow:
+    0 6px 20px color-mix(in srgb, var(--accent-violet) 38%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Le dégradé de marque GLISSE sous le doigt au survol : effet liquide sans
+   lumière ajoutée (simple déplacement de background-position). */
+.btn--primary,
+.btn--accent {
+  background-size: 175% 100%;
+  background-position: 4% 0;
+  transition:
+    transform var(--ed-t-fast),
+    box-shadow var(--ed-t-fast),
+    background-color var(--ed-t-fast),
+    border-color var(--ed-t-fast),
+    opacity var(--ed-t-fast),
+    background-position 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn--primary:hover:not(:disabled),
+.btn--accent:hover:not(:disabled) {
+  background-position: 96% 0;
+}
+
+.btn--primary:hover:not(:disabled) {
+  box-shadow:
+    0 12px 30px color-mix(in srgb, var(--accent-violet) 48%, transparent),
+    0 0 22px color-mix(in srgb, var(--accent-magenta) 24%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.btn--accent {
+  --btn-bg: linear-gradient(135deg, var(--accent-magenta) 0%, var(--accent-violet) 110%);
+  --btn-fg: #fff;
+  --btn-bd: color-mix(in srgb, #fff 30%, transparent);
+  box-shadow:
+    0 6px 20px color-mix(in srgb, var(--accent-magenta) 34%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.btn--accent:hover:not(:disabled) {
+  box-shadow:
+    0 12px 30px color-mix(in srgb, var(--accent-magenta) 44%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+
+/* Balayage lumineux au survol : le reflet glisse à travers le bouton.
+   (Remplace le halo statique des variantes colorées.) */
+.btn--primary::before,
+.btn--accent::before,
+.btn--success::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  background-size: 250% 100%;
+  background-position: 180% 0;
+  background-repeat: no-repeat;
+  opacity: 1;
+  transition: background-position 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.btn--primary:hover:not(:disabled)::before,
+.btn--accent:hover:not(:disabled)::before,
+.btn--success:hover:not(:disabled)::before {
+  background-position: -60% 0;
+  opacity: 1;
+}
+
+.btn:active:not(:disabled) {
+  box-shadow:
+    inset 0 2px 8px rgba(8, 4, 22, 0.28),
+    var(--ed-shadow-sm);
+}
+
+/* Bouton « Liquid Glass » (composant ui/LiquidGlassButton.tsx) :
+   anneau conique iridescent qui tourne au survol/focus. L'anneau est un
+   <span class="btn__liquid-ring"> rendu par le composant. */
+.btn--liquid {
+  position: relative;
+}
+
+.btn__liquid-ring {
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--liquid-angle),
+    var(--accent-violet),
+    var(--accent-magenta),
+    var(--accent-pink),
+    var(--accent-blue),
+    var(--accent-violet)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--ed-t), transform var(--ed-t);
+  animation: liquid-ring-spin 4.5s linear infinite;
+  animation-play-state: paused;
+  pointer-events: none;
+  /* Halo discret autour de l'anneau (pas de lumière blanche). */
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-violet) 45%, transparent));
+}
+
+.btn--liquid:hover:not(:disabled) .btn__liquid-ring,
+.btn--liquid:focus-visible .btn__liquid-ring {
+  opacity: 1;
+  animation-play-state: running;
+  transform: scale(1.015);
+}
+
+.btn--liquid:hover:not(:disabled) {
+  box-shadow:
+    0 12px 30px color-mix(in srgb, var(--accent-violet) 40%, transparent),
+    0 0 26px color-mix(in srgb, var(--accent-magenta) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+@keyframes liquid-ring-spin {
+  to { --liquid-angle: 360deg; }
+}
+
+/* Boutons fantômes / doux : verre très léger, liseré visible au survol. */
+.btn--ghost {
+  --btn-bg: transparent;
+  --btn-bd: transparent;
+  box-shadow: none;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  --btn-bg: color-mix(in srgb, var(--accent-violet) 10%, transparent);
+  --btn-bd: color-mix(in srgb, var(--accent-violet) 26%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 40%, transparent);
+}
+
+.btn--soft {
+  --btn-bg: color-mix(in srgb, var(--accent-violet) 13%, transparent);
+  --btn-bd: color-mix(in srgb, var(--accent-violet) 24%, transparent);
+}
+
+.btn-group {
+  background: color-mix(in srgb, var(--ed-surface-solid) 45%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 40%, transparent);
+}
+
+.btn-group button[aria-pressed='true'],
+.btn-group button.is-active {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-violet) 85%, transparent), color-mix(in srgb, var(--accent-magenta) 75%, transparent));
+  color: #fff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-violet) 35%, transparent);
+}
+
+/* ============================ Barre latérale ============================== */
+
+/* Fond transparent + calque de verre en ::before : le TEXTE de la sidebar
+   reste dans l'élément parent, jamais dans le calque flouté (bug Windows). */
+.sidebar {
+  background: transparent;
+}
+
+.sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+  border-right: 1px solid var(--glass-border);
+  pointer-events: none;
+}
+
+/* Item de navigation actif : pastille violette + barre indicatrice en
+   dégradé violet → rose, avec halo. */
+.nav-item--active {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--accent-violet) 20%, transparent),
+    color-mix(in srgb, var(--accent-magenta) 13%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 35%, transparent),
+    0 4px 16px color-mix(in srgb, var(--accent-violet) 18%, transparent);
+  color: var(--ed-text);
+}
+
+[data-theme='sombre'] .nav-item--active {
+  color: #efeaff;
+}
+
+.nav-item--active::before {
+  background: linear-gradient(180deg, var(--accent-violet), var(--accent-pink));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent-magenta) 65%, transparent);
+}
+
+.nav-item__badge {
+  background: linear-gradient(135deg, var(--accent-violet), var(--accent-magenta));
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-magenta) 45%, transparent);
+}
+
+.user-chip {
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--ed-surface-solid) 40%, transparent);
+}
+
+.user-chip__avatar {
+  background: linear-gradient(135deg, var(--accent-violet), var(--accent-magenta) 70%, var(--accent-pink));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-violet) 40%, transparent);
+}
+
+/* ================================ Topbar ================================ */
+
+.topbar {
+  background: transparent;
+}
+
+.topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--ed-bg) 55%, transparent);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 2px)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(calc(var(--glass-blur) + 2px)) saturate(var(--glass-saturate));
+  border-bottom: 1px solid var(--glass-border);
+  pointer-events: none;
+}
+
+[data-theme='sombre'] .topbar::before {
+  background: color-mix(in srgb, #0b0619 58%, transparent);
+}
+
+/* Champ de recherche rapide : teint translucide (pas de flou : il contient
+   le texte de l'input), liseré violet à l'ouverture. */
+.qs-field {
+  background: color-mix(in srgb, var(--ed-surface-solid) 48%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 35%, transparent);
+}
+
+.qs-field--open,
+.qs-field:focus-within {
+  border-color: color-mix(in srgb, var(--accent-violet) 55%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent-violet) 18%, transparent),
+    0 8px 24px color-mix(in srgb, var(--accent-violet) 14%, transparent);
+}
+
+/* Panneau de résultats : surface animée (pop) → teint franc SANS flou. */
+.qs-panel {
+  background: var(--glass-bg-strong);
+  border: 1px solid color-mix(in srgb, var(--accent-violet) 26%, var(--glass-border));
+  box-shadow:
+    var(--ed-shadow-lg),
+    0 0 40px color-mix(in srgb, var(--accent-violet) 12%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 45%, transparent);
+}
+
+[data-theme='sombre'] .qs-panel {
+  background:
+    linear-gradient(rgba(13, 8, 28, 0.55), rgba(13, 8, 28, 0.55)),
+    var(--glass-bg-strong);
+}
+
+.qs-item:hover,
+.qs-item--active {
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--accent-violet) 16%, transparent),
+    color-mix(in srgb, var(--accent-magenta) 8%, transparent)
+  );
+}
+
+/* ========================= Champs & formulaires =========================== */
+
+.input,
+.textarea,
+.select {
+  background: color-mix(in srgb, var(--ed-surface-solid) 58%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 2px rgba(10, 6, 24, 0.06);
+}
+
+.input:hover,
+.textarea:hover,
+.select:hover {
+  border-color: var(--ed-border-strong);
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: color-mix(in srgb, var(--accent-violet) 60%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent-violet) 22%, transparent),
+    0 6px 20px color-mix(in srgb, var(--accent-violet) 12%, transparent);
+}
+
+/* Listes natives : le menu déroulant système doit rester opaque et lisible
+   (les options ne bénéficient d'aucun style de fond translucide fiable). */
+.select option {
+  background: var(--ed-surface-solid);
+  color: var(--ed-text);
+}
+
+.checkbox input:checked,
+.switch input:checked {
+  background: linear-gradient(135deg, var(--accent-violet), var(--accent-magenta));
+  border-color: transparent;
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent-violet) 45%, transparent);
+}
+
+.pill {
+  background: color-mix(in srgb, var(--ed-surface-solid) 46%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 35%, transparent);
+}
+
+.pill:hover {
+  border-color: color-mix(in srgb, var(--accent-violet) 40%, var(--glass-border));
+}
+
+.pill[aria-pressed='true'],
+.pill.is-on {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-violet) 88%, transparent), color-mix(in srgb, var(--accent-magenta) 78%, transparent));
+  border-color: color-mix(in srgb, #fff 28%, transparent);
+  color: #fff;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-violet) 32%, transparent);
+}
+
+/* ================================= Badges ================================= */
+
+.badge {
+  background: color-mix(in srgb, var(--ed-surface-solid) 55%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 30%, transparent);
+}
+
+.badge--primary {
+  background: color-mix(in srgb, var(--accent-violet) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent-violet) 42%, transparent);
+  color: color-mix(in srgb, var(--accent-violet) 78%, var(--ed-text));
+}
+
+[data-theme='sombre'] .badge--primary {
+  color: #d9ccff;
+}
+
+.badge--success {
+  background: color-mix(in srgb, var(--ed-success) 15%, transparent);
+  border-color: color-mix(in srgb, var(--ed-success) 38%, transparent);
+}
+
+.badge--warning {
+  background: color-mix(in srgb, var(--ed-warning) 15%, transparent);
+  border-color: color-mix(in srgb, var(--ed-warning) 40%, transparent);
+}
+
+[data-theme='sombre'] .badge--warning {
+  color: #ffd98a;
+}
+
+.badge--danger {
+  background: color-mix(in srgb, var(--ed-danger) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ed-danger) 38%, transparent);
+}
+
+.badge--outline {
+  background: transparent;
+  border-color: var(--glass-edge);
+}
+
+/* Variante « GlassBadge » : verre dépoli + liseré iridescent discret. */
+.badge--glass {
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--accent-violet) 14%, transparent), color-mix(in srgb, var(--accent-pink) 10%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent-violet) 34%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 45%, transparent),
+    0 2px 10px color-mix(in srgb, var(--accent-violet) 16%, transparent);
+}
+
+/* =============================== Progression ============================== */
+
+.progress {
+  background: color-mix(in srgb, var(--ed-surface-solid) 55%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 3px rgba(10, 6, 24, 0.12);
+}
+
+.progress__bar {
+  background: linear-gradient(90deg, var(--accent-violet-deep), var(--accent-violet) 45%, var(--accent-pink));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent-magenta) 45%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Voile brillant qui traverse la barre (décor pur, coupé si mouvement
+   réduit — la garde globale en fin de fichier s'en charge). */
+.progress__bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.38) 50%, transparent 70%);
+  background-size: 220% 100%;
+  animation: progress-shimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes progress-shimmer {
+  from { background-position: 160% 0; }
+  to { background-position: -60% 0; }
+}
+
+/* ============================ Modales & toasts ============================ */
+
+.modal-backdrop {
+  background: rgba(7, 4, 18, 0.58);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  backdrop-filter: blur(10px) saturate(1.15);
+}
+
+[data-theme='clair'] .modal-backdrop,
+:root:not([data-theme='sombre']) .modal-backdrop {
+  background: rgba(38, 26, 74, 0.38);
+}
+
+/* La modale est animée (pop) : teint franc, PAS de backdrop-filter propre.
+   Le flou est déjà apporté par l'arrière-plan (.modal-backdrop). */
+.modal {
+  background: var(--glass-bg-strong);
+  border: 1px solid color-mix(in srgb, var(--accent-violet) 22%, var(--glass-border));
+  box-shadow:
+    var(--ed-shadow-lg),
+    0 0 60px color-mix(in srgb, var(--accent-violet) 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 55%, transparent);
+}
+
+[data-theme='sombre'] .modal {
+  background:
+    linear-gradient(rgba(12, 7, 26, 0.5), rgba(12, 7, 26, 0.5)),
+    var(--glass-bg-strong);
+}
+
+/* Toasts : surfaces animées → teint franc + halo de la couleur du statut. */
+.toast {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--ed-shadow-md),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 45%, transparent);
+}
+
+[data-theme='sombre'] .toast {
+  background:
+    linear-gradient(rgba(12, 7, 26, 0.55), rgba(12, 7, 26, 0.55)),
+    var(--glass-bg-strong);
+}
+
+.toast--success { box-shadow: var(--ed-shadow-md), 0 0 24px color-mix(in srgb, var(--ed-success) 28%, transparent); }
+.toast--error { box-shadow: var(--ed-shadow-md), 0 0 24px color-mix(in srgb, var(--ed-danger) 30%, transparent); }
+.toast--warning { box-shadow: var(--ed-shadow-md), 0 0 24px color-mix(in srgb, var(--ed-warning) 26%, transparent); }
+
+/* ================================ Hero =================================== */
+
+/*
+ * Héro du tableau de bord : panneau de verre sombre (et non plus une dalle
+ * dégradée saturée qui « flashait » dans le thème sombre). Deux halos
+ * radiaux très doux gardent la profondeur violet/magenta sans lumière vive ;
+ * le texte reprend la couleur de texte du thème → plus aucun bug de contraste.
+ */
+.hero {
+  background:
+    radial-gradient(115% 150% at 88% -30%, color-mix(in srgb, var(--accent-violet) 30%, transparent), transparent 58%),
+    radial-gradient(95% 130% at -12% 125%, color-mix(in srgb, var(--accent-magenta) 16%, transparent), transparent 62%),
+    linear-gradient(160deg, rgba(28, 15, 62, 0.72), rgba(13, 7, 32, 0.82));
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 50%, transparent);
+  color: var(--ed-text);
+}
+
+/* Halos décoratifs : opacité faible, aucune animation « flash ». */
+.hero::after {
+  content: '';
+  position: absolute;
+  right: -70px;
+  top: -80px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, color-mix(in srgb, var(--accent-violet) 22%, transparent), transparent 68%);
+  animation: ed-float 11s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  right: 90px;
+  bottom: -100px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 60% 60%, color-mix(in srgb, var(--accent-magenta) 14%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.hero p {
+  color: color-mix(in srgb, var(--ed-text) 82%, transparent);
+}
+
+/* Pastille de salutation : verre teinté lisible sur les deux thèmes. */
+.hero .hero__badge {
+  background: linear-gradient(120deg, color-mix(in srgb, var(--accent-violet) 22%, transparent), color-mix(in srgb, var(--accent-pink) 14%, transparent));
+  border-color: color-mix(in srgb, var(--accent-violet) 42%, transparent);
+  color: color-mix(in srgb, var(--ed-text) 92%, #fff 8%);
+}
+
+/* Boutons du héro : le primaire garde son dégradé de marque, le secondaire
+   devient un verre translucide cohérent avec le panneau. */
+.hero .btn--outline {
+  --btn-bg: color-mix(in srgb, var(--ed-surface-solid) 32%, transparent);
+  --btn-fg: var(--ed-text);
+  --btn-bd: var(--glass-border);
+}
+
+[data-theme='clair'] .hero {
+  background:
+    radial-gradient(115% 150% at 88% -30%, color-mix(in srgb, var(--accent-violet) 14%, transparent), transparent 58%),
+    radial-gradient(95% 130% at -12% 125%, color-mix(in srgb, var(--accent-magenta) 10%, transparent), transparent 62%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.46));
+}
+
+[data-theme='clair'] .hero .btn--outline {
+  --btn-bg: color-mix(in srgb, #fff 55%, transparent);
+  --btn-bd: color-mix(in srgb, var(--accent-violet) 26%, transparent);
+}
+
+/* ============================ Landing & auth ============================== */
+
+.landing__gradient {
+  background-image: linear-gradient(92deg, var(--accent-violet), var(--accent-magenta), var(--accent-pink), var(--accent-blue), var(--accent-violet));
+}
+
+.landing__blob--1 {
+  background: radial-gradient(circle at 30% 30%, #c4b5fd, var(--accent-violet) 70%);
+}
+
+.landing__blob--2 {
+  background: radial-gradient(circle at 60% 40%, #93c5fd, #4f46e5 70%);
+}
+
+.landing__blob--3 {
+  background: radial-gradient(circle at 50% 50%, #fbc2eb, var(--accent-pink) 70%);
+}
+
+.auth-aside {
+  background: linear-gradient(150deg, #4c1d95 0%, var(--accent-violet-deep) 32%, #a21caf 66%, #1d4ed8 135%);
+}
+
+.auth-card .card,
+.auth-card.card {
+  box-shadow:
+    var(--glass-shadow),
+    0 24px 60px color-mix(in srgb, var(--accent-violet-deep) 22%, transparent);
+}
+
+/* ====================== Squelettes & menus natifs ========================= */
+
+.skeleton {
+  background: color-mix(in srgb, var(--ed-surface-solid) 60%, transparent);
+  border: 1px solid var(--glass-border);
+}
+
+/* ============================== Divers UI ================================= */
+
+::selection {
+  background: color-mix(in srgb, var(--accent-magenta) 38%, transparent);
+  color: #fff;
+}
+
+[data-theme='sombre'] ::selection {
+  color: #fff;
+}
+
+* {
+  scrollbar-color: color-mix(in srgb, var(--accent-violet) 55%, transparent) transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent-violet), var(--accent-magenta));
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--accent-magenta), var(--accent-pink));
+}
+
+/* Formulaires natifs : rend les contrôles système (ascenseurs, cases)
+   cohérents avec le thème en cours. */
+:root {
+  color-scheme: light;
+}
+
+[data-theme='sombre'] {
+  color-scheme: dark;
+}
+
+/* ===================== Entrées en scène (stagger) ========================= */
+
+/*
+ * Transition de page : animation CSS (et non framer) pour garantir qu'aucun
+ * `transform` résiduel ne subsiste à la fin — un transform laissé en style
+ * inline créerait un « backdrop root » permanent qui couperait le flou de
+ * TOUTES les cartes de la page. Les keyframes se terminent sur
+ * `transform: none` / `filter: none`, valeurs neutres qui ne créent rien.
+ */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.page-enter {
+  animation: page-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Apparition en cascade des blocs d'une page (tableau de bord…). Même
+   garantie : l'état final ne pose ni transform ni filter. */
+@keyframes glass-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.reveal-stagger > *,
+.stagger > * {
+  animation: glass-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reveal-stagger > *:nth-child(1), .stagger > *:nth-child(1) { animation-delay: 0.03s; }
+.reveal-stagger > *:nth-child(2), .stagger > *:nth-child(2) { animation-delay: 0.09s; }
+.reveal-stagger > *:nth-child(3), .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.reveal-stagger > *:nth-child(4), .stagger > *:nth-child(4) { animation-delay: 0.21s; }
+.reveal-stagger > *:nth-child(5), .stagger > *:nth-child(5) { animation-delay: 0.27s; }
+.reveal-stagger > *:nth-child(6), .stagger > *:nth-child(6) { animation-delay: 0.33s; }
+.reveal-stagger > *:nth-child(7), .stagger > *:nth-child(7) { animation-delay: 0.39s; }
+.reveal-stagger > *:nth-child(8), .stagger > *:nth-child(8) { animation-delay: 0.45s; }
+.reveal-stagger > *:nth-child(n + 9), .stagger > *:nth-child(n + 9) { animation-delay: 0.5s; }
+
+/* ==================== Petites machines ([data-fx='low']) ================== */
+
+:root[data-fx='low'] {
+  --glass-blur: 9px;
+  --glass-saturate: 1.2;
+}
+
+:root[data-fx='low'] .card::after {
+  display: none; /* reflet / lumière curseur supprimés */
+}
+
+:root[data-fx='low'] .progress__bar::after {
+  animation: none;
+}
+
+:root[data-fx='low'] .btn--primary::before,
+:root[data-fx='low'] .btn--accent::before,
+:root[data-fx='low'] .btn--success::before {
+  transition: none; /* pas de balayage animé */
+  background-position: 40% 0;
+}
+
+:root[data-fx='low'] .btn--primary,
+:root[data-fx='low'] .btn--accent {
+  background-size: 100% 100%; /* pas de glissement de dégradé */
+}
+
+:root[data-fx='low'] .btn__liquid-ring {
+  filter: none; /* pas de halo drop-shadow */
+}
+
+:root[data-fx='low'] [data-tilt]:hover {
+  transform: none;
+}
+
+/* ================== Garde-fous : mouvement & impression =================== */
+
+/* Mouvement réduit (préférence système) : plus d'animations décoratives, le
+   fondu du canvas et les entrées en scène deviennent instantanés. */
+@media (prefers-reduced-motion: reduce) {
+  .liquid-bg__css,
+  .liquid-bg__canvas,
+  .page-enter,
+  .reveal-stagger > *,
+  .stagger > *,
+  .progress__bar::after,
+  .btn__liquid-ring,
+  .hero::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .btn--primary,
+  .btn--accent {
+    transition: none;
+    background-position: 4% 0;
+  }
+  .reveal-stagger > *,
+  .stagger > *,
+  .page-enter {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .liquid-bg__canvas {
+    opacity: 1;
+  }
+}
+
+/* Réglage « Animations : désactivées » d'EduMate — même traitement. */
+[data-animations='off'] .liquid-bg__css,
+[data-animations='off'] .page-enter,
+[data-animations='off'] .reveal-stagger > *,
+[data-animations='off'] .stagger > *,
+[data-animations='off'] .progress__bar::after,
+[data-animations='off'] .btn__liquid-ring,
+[data-animations='off'] .hero::after {
+  animation: none !important;
+}
+
+[data-animations='off'] .btn--primary,
+[data-animations='off'] .btn--accent {
+  transition: none;
+  background-position: 4% 0;
+}
+
+[data-animations='off'] .reveal-stagger > *,
+[data-animations='off'] .stagger > *,
+[data-animations='off'] .page-enter {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* Impression : fond vivant masqué, cartes opaques et lisibles. */
+@media print {
+  .liquid-bg {
+    display: none !important;
+  }
+  .card,
+  .modal,
+  .toast {
+    background: #fff !important;
+    box-shadow: none !important;
+    border-color: #ccc !important;
+  }
+  .card::before,
+  .card::after,
+  .sidebar::before,
+  .topbar::before {
+    display: none !important;
+  }
+}

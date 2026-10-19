@@ -1,0 +1,113 @@
+{
+ "banks": [
+  {
+   "topic": "ses-terminale-methode-dissertation",
+   "questions": [
+    {
+     "prompt": "Quelle est la première étape d’une dissertation en SES ?",
+     "options": [
+      "Analyser le sujet et définir précisément les notions clés",
+      "Rédiger l’introduction",
+      "Chercher des chiffres",
+      "Construire le plan définitif"
+     ],
+     "answer": 0,
+     "explanation": "La définition rigoureuse des notions (croissance, chômage, justice sociale…) conditionne tout le devoir.",
+     "skill": "Analyse du sujet",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel type de preuve est le plus attendu en SES ?",
+     "options": [
+      "Des données chiffrées sourcées et des références théoriques",
+      "Des opinions personnelles",
+      "Des exemples fictifs",
+      "Des citations littéraires"
+     ],
+     "answer": 0,
+     "explanation": "Une dissertation de SES articule théorie (auteurs, mécanismes) et faits (statistiques INSEE, OCDE, exemples historiques datés).",
+     "skill": "Argumentation chiffrée",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Comment mobiliser un mécanisme économique dans un devoir ?",
+     "options": [
+      "En explicitant la chaîne causale : cause → mécanisme → conséquence",
+      "En citant seulement le nom du mécanisme",
+      "En donnant un chiffre sans explication",
+      "En recopiant la définition du cours"
+     ],
+     "answer": 0,
+     "explanation": "Exemple : baisse des taux → crédit moins cher → investissement et consommation → demande → croissance.",
+     "skill": "Raisonnement économique",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle est la fonction d’une référence à un auteur en SES ?",
+     "options": [
+      "Appuyer un argument en précisant son apport et ses limites",
+      "Remplir une page",
+      "Remplacer une donnée chiffrée",
+      "Décorer l’introduction"
+     ],
+     "answer": 0,
+     "explanation": "Une référence efficace : nom de l’auteur, thèse, mécanisme proposé, et éventuellement critique (validité, contexte).",
+     "skill": "Références théoriques",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quel plan convient au sujet « La croissance est-elle compatible avec l’environnement ? »",
+     "options": [
+      "Un plan dialectique : compatibilité, contradictions, dépassement par la soutenabilité",
+      "Un plan chronologique",
+      "Un plan par pays",
+      "Un plan en une seule partie"
+     ],
+     "answer": 0,
+     "explanation": "Le sujet oppose deux termes : on examine la compatibilité, puis les contradictions, puis on dépasse par la soutenabilité forte/faible et les instruments de politique économique.",
+     "skill": "Construction du plan",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que doit contenir l’introduction d’une dissertation de SES ?",
+     "options": [
+      "Accroche, définition des termes, problématique, annonce du plan",
+      "Uniquement la problématique",
+      "Un graphique",
+      "La conclusion"
+     ],
+     "answer": 0,
+     "explanation": "Introduction en quatre temps : accroche (fait d’actualité ou donnée), analyse des notions, problématique, annonce du plan.",
+     "skill": "Introduction",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment conclure une dissertation en SES ?",
+     "options": [
+      "Bilan de la démonstration, réponse nette et ouverture sur un enjeu proche",
+      "En résumant chaque partie mot à mot",
+      "En posant une nouvelle question sans bilan",
+      "En citant un auteur sans commentaire"
+     ],
+     "answer": 0,
+     "explanation": "La conclusion tranche le problème posé et peut ouvrir sur un débat voisin (ex. indicateurs alternatifs au PIB).",
+     "skill": "Conclusion",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quelle erreur pénalise le plus une copie de SES ?",
+     "options": [
+      "Le catalogue de connaissances sans lien avec le sujet",
+      "Un plan en trois parties",
+      "Des chiffres arrondis",
+      "Une introduction de dix lignes"
+     ],
+     "answer": 0,
+     "explanation": "Le correcteur attend une démonstration : chaque élément du cours doit servir l’argumentation du sujet.",
+     "skill": "Écueils",
+     "difficulty": "moyen"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,388 @@
+{
+ "banks": [
+  {
+   "topic": "histoire-geographie-troisieme-emc-republique",
+   "questions": [
+    {
+     "prompt": "Quelle est la devise de la République française ?",
+     "options": [
+      "Liberté, Égalité, Fraternité",
+      "Liberté, Justice, Paix",
+      "Égalité, Solidarité, Nation",
+      "Travail, Famille, Patrie"
+     ],
+     "answer": 0,
+     "explanation": "La devise « Liberté, Égalité, Fraternité » figure dans la Constitution ; « Travail, Famille, Patrie » était celle du régime de Vichy.",
+     "skill": "Symboles de la République",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Que signifie le principe de laïcité ?",
+     "options": [
+      "La neutralité de l’État vis-à-vis des religions et la liberté de conscience",
+      "L’interdiction de toute religion",
+      "La reconnaissance d’une religion officielle",
+      "Le contrôle des cultes par l’État"
+     ],
+     "answer": 0,
+     "explanation": "La laïcité sépare les Églises et l’État (loi de 1905) : l’État est neutre, chacun est libre de croire ou de ne pas croire.",
+     "skill": "Laïcité",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel texte fondateur proclame l’égalité des droits en France ?",
+     "options": [
+      "La Déclaration des droits de l’homme et du citoyen de 1789",
+      "Le Code civil de 1804",
+      "La Charte de 1814",
+      "Le seul préambule de 1946"
+     ],
+     "answer": 0,
+     "explanation": "La DDHC de 1789 affirme que « les hommes naissent et demeurent libres et égaux en droits » ; elle est reprise dans le préambule de la Constitution de 1958.",
+     "skill": "Textes fondateurs",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Quel symbole de la République incarne la liberté guidant le peuple ?",
+     "options": [
+      "Marianne",
+      "Le coq gaulois",
+      "La Marseillaise",
+      "Le 14 juillet"
+     ],
+     "answer": 0,
+     "explanation": "Marianne incarne la République ; la Marseillaise est l’hymne national, le 14 juillet la fête nationale, le coq un emblème historique.",
+     "skill": "Symboles",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Que garantit le droit de vote en France depuis 1945 ?",
+     "options": [
+      "Le suffrage universel direct, libre et secret, y compris pour les femmes",
+      "Le vote réservé aux hommes propriétaires",
+      "Le vote obligatoire avec amende",
+      "Le vote par corporation"
+     ],
+     "answer": 0,
+     "explanation": "Le suffrage est universel, égal, libre et secret ; les femmes votent depuis 1945, la majorité est à 18 ans depuis 1974.",
+     "skill": "Suffrage",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Qu’est-ce qu’un service public ?",
+     "options": [
+      "Une activité d’intérêt général assurée par l’État ou une collectivité",
+      "Une entreprise privée rentable",
+      "Un service réservé aux fonctionnaires",
+      "Une association caritative"
+     ],
+     "answer": 0,
+     "explanation": "Le service public répond à un besoin d’intérêt général (éducation, santé, transports) et repose sur l’égalité d’accès, la continuité et l’adaptabilité.",
+     "skill": "Services publics",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est le rôle du Défenseur des droits ?",
+     "options": [
+      "Veiller au respect des droits et libertés par les administrations",
+      "Juger les affaires pénales",
+      "Diriger la police nationale",
+      "Rédiger les lois"
+     ],
+     "answer": 0,
+     "explanation": "Le Défenseur des droits, autorité constitutionnelle indépendante, peut être saisi gratuitement par toute personne s’estimant lésée.",
+     "skill": "Institutions",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Pourquoi la liberté d’expression connaît-elle des limites ?",
+     "options": [
+      "Parce qu’elle ne doit pas porter atteinte aux droits d’autrui ni à l’ordre public",
+      "Parce qu’elle est interdite aux mineurs",
+      "Parce qu’elle est réservée aux journalistes",
+      "Parce qu’elle n’existe pas en France"
+     ],
+     "answer": 0,
+     "explanation": "La liberté d’expression est garantie mais encadrée : interdiction de l’injure, de la diffamation, de l’incitation à la haine.",
+     "skill": "Libertés fondamentales",
+     "difficulty": "difficile"
+    }
+   ]
+  },
+  {
+   "topic": "histoire-geographie-troisieme-emc-citoyennete",
+   "questions": [
+    {
+     "prompt": "À quel âge obtient-on la capacité électorale en France ?",
+     "options": [
+      "18 ans",
+      "16 ans",
+      "21 ans",
+      "15 ans"
+     ],
+     "answer": 0,
+     "explanation": "La majorité civile et électorale est fixée à 18 ans depuis 1974.",
+     "skill": "Citoyenneté",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Qu’est-ce qu’un citoyen ?",
+     "options": [
+      "Une personne titulaire de la nationalité et des droits civils et politiques",
+      "Toute personne habitant en France",
+      "Uniquement une personne majeure qui vote",
+      "Un fonctionnaire de l’État"
+     ],
+     "answer": 0,
+     "explanation": "Le citoyen dispose de droits (vote, éligibilité) et de devoirs (respect des lois, impôts, défense).",
+     "skill": "Citoyenneté",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Quelle est la différence entre une loi et un règlement ?",
+     "options": [
+      "La loi est votée par le Parlement, le règlement est pris par le pouvoir exécutif",
+      "Le règlement est supérieur à la loi",
+      "La loi ne concerne que les fonctionnaires",
+      "Il n’y a aucune différence"
+     ],
+     "answer": 0,
+     "explanation": "Dans la hiérarchie des normes, la Constitution prime, puis les traités, la loi, et enfin les règlements (décrets, arrêtés).",
+     "skill": "Hiérarchie des normes",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est le rôle du Conseil constitutionnel ?",
+     "options": [
+      "Vérifier la conformité des lois à la Constitution",
+      "Juger les affaires criminelles",
+      "Élire le président",
+      "Rédiger les lois"
+     ],
+     "answer": 0,
+     "explanation": "Le Conseil constitutionnel contrôle la constitutionnalité des lois et veille à la régularité des élections nationales.",
+     "skill": "Institutions",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Qu’est-ce que la nationalité française par droit du sol ?",
+     "options": [
+      "L’acquisition de la nationalité par la naissance et la résidence en France",
+      "L’acquisition par la filiation uniquement",
+      "Une nationalité accordée à tous les touristes",
+      "Une procédure réservée aux adultes"
+     ],
+     "answer": 0,
+     "explanation": "Le droit du sol permet à un enfant né en France de parents étrangers d’acquérir la nationalité sous conditions ; le droit du sang repose sur la filiation.",
+     "skill": "Nationalité",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel engagement citoyen est ouvert dès 16 ans ?",
+     "options": [
+      "Le service civique",
+      "Le vote aux élections présidentielles",
+      "L’éligibilité au Parlement",
+      "La fonction de juge"
+     ],
+     "answer": 0,
+     "explanation": "Le service civique est accessible de 16 à 25 ans : mission d’intérêt général indemnisée.",
+     "skill": "Engagement",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Qu’est-ce qu’une association loi 1901 ?",
+     "options": [
+      "Un groupement de personnes à but non lucratif, librement constitué",
+      "Une entreprise commerciale",
+      "Un organisme public",
+      "Un parti politique obligatoire"
+     ],
+     "answer": 0,
+     "explanation": "La loi du 1er juillet 1901 garantit la liberté d’association : deux personnes au moins, but non lucratif, déclaration en préfecture.",
+     "skill": "Engagement associatif",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quels sont les trois pouvoirs distingués par Montesquieu ?",
+     "options": [
+      "Législatif, exécutif, judiciaire",
+      "Fédéral, local, national",
+      "Militaire, civil, religieux",
+      "Économique, social, culturel"
+     ],
+     "answer": 0,
+     "explanation": "La séparation des pouvoirs (L’Esprit des lois, 1748) est un principe fondamental de l’État de droit.",
+     "skill": "Séparation des pouvoirs",
+     "difficulty": "moyen"
+    }
+   ]
+  },
+  {
+   "topic": "histoire-geographie-seconde-methode-document",
+   "questions": [
+    {
+     "prompt": "Quels éléments faut-il présenter pour identifier un document historique ?",
+     "options": [
+      "Nature, auteur, date, contexte, destinataire",
+      "Uniquement le titre",
+      "Le nombre de pages",
+      "L’avis personnel de l’historien"
+     ],
+     "answer": 0,
+     "explanation": "La présentation critique d’un document suit la grille : nature, auteur, date, contexte, source, destinataire, intention.",
+     "skill": "Analyse critique",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Pourquoi la date d’un document est-elle essentielle ?",
+     "options": [
+      "Parce qu’elle détermine le contexte historique et la portée du propos",
+      "Parce qu’elle permet de classer les documents par ordre alphabétique",
+      "Parce qu’elle indique la longueur du texte",
+      "Parce qu’elle est exigée par le correcteur uniquement"
+     ],
+     "answer": 0,
+     "explanation": "Un document se comprend dans son contexte : la même phrase n’a pas le même sens selon qu’elle est écrite avant ou après un événement majeur.",
+     "skill": "Contextualisation",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment distinguer un document source d’un document historiographique ?",
+     "options": [
+      "Le document source date de l’époque étudiée ; le document historiographique est produit plus tard par un historien",
+      "Le document source est toujours plus long",
+      "L’historiographie est toujours un tableau",
+      "Il n’y a aucune différence"
+     ],
+     "answer": 0,
+     "explanation": "Un document de première main (témoignage, loi, affiche) s’oppose à un document de seconde main (manuel, article d’historien).",
+     "skill": "Typologie des documents",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que signifie « critiquer » un document en histoire ?",
+     "options": [
+      "Interroger sa fiabilité, son point de vue et ses intentions",
+      "Dire que le document est mauvais",
+      "Comparer sa date avec celle d’un autre document",
+      "Recopier le document"
+     ],
+     "answer": 0,
+     "explanation": "La critique externe porte sur l’authenticité, la critique interne sur la cohérence et la sincérité du contenu.",
+     "skill": "Critique historique",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Comment utiliser un témoignage comme document historique ?",
+     "options": [
+      "En le croisant avec d’autres sources pour vérifier sa fiabilité",
+      "En le recopiant intégralement",
+      "En l’acceptant sans réserve",
+      "En l’écartant systématiquement"
+     ],
+     "answer": 0,
+     "explanation": "Un témoignage est subjectif : il informe sur les représentations de son auteur et doit être confronté à d’autres documents.",
+     "skill": "Croisement des sources",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que faire des silences d’un document ?",
+     "options": [
+      "Les signaler et expliquer pourquoi certaines informations sont absentes",
+      "Les ignorer",
+      "Les inventer pour compléter",
+      "Les considérer comme des erreurs"
+     ],
+     "answer": 0,
+     "explanation": "Ce qu’un document ne dit pas est aussi une information : censure, oubli, angle de vue choisi par l’auteur.",
+     "skill": "Analyse critique",
+     "difficulty": "difficile"
+    }
+   ]
+  },
+  {
+   "topic": "histoire-geographie-seconde-methode-croquis",
+   "questions": [
+    {
+     "prompt": "Que doit contenir un croquis de géographie complet ?",
+     "options": [
+      "Un titre, une légende organisée et des figurés adaptés",
+      "Uniquement des couleurs",
+      "Une carte calquée sur Internet",
+      "Un paragraphe rédigé"
+     ],
+     "answer": 0,
+     "explanation": "Les trois éléments notés : titre précis, légende hiérarchisée en parties, figurés (ponctuels, linéaires, de surface) cohérents.",
+     "skill": "Composition d’un croquis",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel type de figuré utilise-t-on pour représenter une ville ?",
+     "options": [
+      "Un figuré ponctuel proportionnel à son importance",
+      "Un figuré linéaire",
+      "Une flèche",
+      "Un aplat de couleur"
+     ],
+     "answer": 0,
+     "explanation": "Les figurés ponctuels localisent des points (villes, ports) ; leur taille exprime une hiérarchie.",
+     "skill": "Figurés ponctuels",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Comment représenter un flux sur un croquis ?",
+     "options": [
+      "Par une flèche dont l’épaisseur est proportionnelle à l’intensité du flux",
+      "Par un cercle",
+      "Par un dégradé de couleurs",
+      "Par une hachure"
+     ],
+     "answer": 0,
+     "explanation": "Les figurés linéaires (flèches) traduisent les échanges, migrations ou transports ; l’épaisseur hiérarchise.",
+     "skill": "Flux",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment organiser la légende d’un croquis ?",
+     "options": [
+      "En deux ou trois parties correspondant aux axes du sujet",
+      "Par ordre alphabétique",
+      "En listant tous les figurés sans regroupement",
+      "En ne mettant que les couleurs"
+     ],
+     "answer": 0,
+     "explanation": "La légende est un mini-plan : elle suit la problématique et regroupe les figurés par idée directrice.",
+     "skill": "Légende",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Pourquoi hiérarchiser les couleurs dans un croquis ?",
+     "options": [
+      "Pour traduire des intensités et rendre la lecture immédiate",
+      "Pour remplir l’espace",
+      "Parce que trois couleurs sont obligatoires",
+      "Pour décorer la carte"
+     ],
+     "answer": 0,
+     "explanation": "Les dégradés (du clair au foncé) expriment des intensités ; le choix des couleurs doit rester cohérent et lisible.",
+     "skill": "Sémiologie graphique",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quelle erreur évite-t-on en soignant le titre d’un croquis ?",
+     "options": [
+      "Un titre vague qui ne répond pas au sujet",
+      "Un titre trop long",
+      "Un titre en majuscules",
+      "L’absence de date"
+     ],
+     "answer": 0,
+     "explanation": "Le titre doit reformuler la problématique du sujet, être précis et placé en haut du croquis.",
+     "skill": "Titre",
+     "difficulty": "facile"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,222 @@
+{
+ "banks": [
+  {
+   "topic": "physique-chimie-premiere-chimie-oxydoreduction",
+   "questions": [
+    {
+     "prompt": "Qu’est-ce qu’une oxydation ?",
+     "options": [
+      "Une perte d’électrons",
+      "Un gain d’électrons",
+      "Une perte de protons",
+      "Un gain de neutrons"
+     ],
+     "answer": 0,
+     "explanation": "Oxydation = perte d’électrons ; réduction = gain d’électrons. Moyen mnémotechnique : OIL RIG (Oxidation Is Loss, Reduction Is Gain).",
+     "skill": "Oxydation",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Qu’est-ce qu’un couple oxydant/réducteur ?",
+     "options": [
+      "Deux espèces qui échangent des électrons, notées Ox/Red",
+      "Deux ions de même charge",
+      "Un acide et sa base conjuguée",
+      "Deux isotopes d’un même élément"
+     ],
+     "answer": 0,
+     "explanation": "Un couple redox réunit l’oxydant et le réducteur conjugués : Ox + n e⁻ = Red (ex. Cu²⁺/Cu).",
+     "skill": "Couples redox",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Dans une pile, où se produit l’oxydation ?",
+     "options": [
+      "À l’anode, pôle négatif",
+      "À la cathode, pôle positif",
+      "Dans le pont salin",
+      "Au niveau du sel fondu"
+     ],
+     "answer": 0,
+     "explanation": "L’oxydation a toujours lieu à l’anode (pôle − d’une pile) ; la réduction à la cathode (pôle +).",
+     "skill": "Piles",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle demi-équation correspond à la réduction de l’ion cuivre(II) ?",
+     "options": [
+      "Cu²⁺ + 2 e⁻ → Cu",
+      "Cu → Cu²⁺ + 2 e⁻",
+      "Cu²⁺ → Cu + 2 e⁻",
+      "Cu + 2 e⁻ → Cu²⁺"
+     ],
+     "answer": 0,
+     "explanation": "La réduction est un gain d’électrons : Cu²⁺ capte 2 électrons pour donner le cuivre métallique.",
+     "skill": "Demi-équations",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est le nombre d’oxydation du soufre dans H₂SO₄ ?",
+     "options": [
+      "+VI",
+      "+IV",
+      "−II",
+      "+II"
+     ],
+     "answer": 0,
+     "explanation": "H est +I, O est −II : 2(+1) + S + 4(−2) = 0, donc S = +6.",
+     "skill": "Nombre d’oxydation",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Comment équilibrer une équation d’oxydoréduction ?",
+     "options": [
+      "En égalisant le nombre d’électrons échangés entre les deux demi-équations",
+      "En ajoutant de l’eau au hasard",
+      "En modifiant uniquement les coefficients de l’oxygène",
+      "En inversant les réactifs"
+     ],
+     "answer": 0,
+     "explanation": "On écrit les deux demi-équations, on multiplie chacune pour égaliser les électrons, puis on les additionne.",
+     "skill": "Équilibrage redox",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quel rôle joue le pont salin dans une pile ?",
+     "options": [
+      "Assurer la continuité électrique et la neutralité des solutions",
+      "Augmenter la tension",
+      "Empêcher la réaction",
+      "Conserver les électrodes"
+     ],
+     "answer": 0,
+     "explanation": "Le pont salin laisse passer les ions : il ferme le circuit et évite l’accumulation de charges.",
+     "skill": "Piles",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Que se passe-t-il lors de la corrosion du fer ?",
+     "options": [
+      "Le fer est oxydé par le dioxygène en présence d’eau",
+      "Le fer est réduit",
+      "Le fer se sublime",
+      "Le fer devient un isolant"
+     ],
+     "answer": 0,
+     "explanation": "Le fer perd des électrons (Fe → Fe²⁺ + 2 e⁻) au contact de O₂ et de l’humidité : formation de la rouille.",
+     "skill": "Corrosion",
+     "difficulty": "moyen"
+    }
+   ]
+  },
+  {
+   "topic": "physique-chimie-premiere-chimie-organique",
+   "questions": [
+    {
+     "prompt": "Quelle est la formule générale d’un alcane ?",
+     "options": [
+      "CnH2n+2",
+      "CnH2n",
+      "CnH2n−2",
+      "CnHn"
+     ],
+     "answer": 0,
+     "explanation": "Les alcanes sont saturés : CnH2n+2 (méthane CH₄, éthane C₂H₆…). Les alcènes suivent CnH2n.",
+     "skill": "Familles organiques",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel groupe caractéristique définit un alcool ?",
+     "options": [
+      "Le groupe hydroxyle −OH porté par un carbone saturé",
+      "Le groupe carbonyle C=O",
+      "Le groupe carboxyle −COOH",
+      "Le groupe amine −NH₂"
+     ],
+     "answer": 0,
+     "explanation": "Alcool : R−OH ; aldéhyde/cétone : C=O ; acide carboxylique : −COOH ; amine : −NH₂.",
+     "skill": "Groupes caractéristiques",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment nomme-t-on le composé CH₃−CH₂−CH₂−OH ?",
+     "options": [
+      "Propan-1-ol",
+      "Propanal",
+      "Acide propanoïque",
+      "Propanone"
+     ],
+     "answer": 0,
+     "explanation": "Chaîne à 3 carbones (propane), groupe −OH sur le carbone 1 : propan-1-ol.",
+     "skill": "Nomenclature",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quelle isomérie présente deux composés de même formule brute mais d’enchaînement différent ?",
+     "options": [
+      "L’isomérie de constitution",
+      "La stéréoisomérie de conformation",
+      "L’isomérie Z/E",
+      "L’isomérie optique"
+     ],
+     "answer": 0,
+     "explanation": "Les isomères de constitution diffèrent par l’enchaînement des atomes ; les stéréoisomères ont le même enchaînement mais une disposition spatiale différente.",
+     "skill": "Isomérie",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle est la formule brute de l’éthanol ?",
+     "options": [
+      "C₂H₆O",
+      "C₂H₄O₂",
+      "CH₄O",
+      "C₃H₈O"
+     ],
+     "answer": 0,
+     "explanation": "L’éthanol CH₃−CH₂−OH compte 2 C, 6 H et 1 O : C₂H₆O.",
+     "skill": "Formules brutes",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Qu’est-ce qu’une distillation fractionnée ?",
+     "options": [
+      "Une séparation de liquides miscibles fondée sur leurs températures d’ébullition différentes",
+      "Une filtration sur papier",
+      "Une extraction par solvant",
+      "Une décantation"
+     ],
+     "answer": 0,
+     "explanation": "La colonne de Vigreux multiplie les cycles vaporisation-condensation : on sépare les constituants selon leur volatilité.",
+     "skill": "Séparation",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est l’alcane à quatre atomes de carbone ?",
+     "options": [
+      "Le butane",
+      "Le propane",
+      "Le pentane",
+      "L’éthane"
+     ],
+     "answer": 0,
+     "explanation": "Méthane (1 C), éthane (2), propane (3), butane (4), pentane (5), hexane (6).",
+     "skill": "Nomenclature",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Que signifie « saturation » en chimie organique ?",
+     "options": [
+      "La molécule ne contient que des liaisons simples carbone-carbone",
+      "La molécule contient une double liaison",
+      "La solution est concentrée au maximum",
+      "La molécule est cyclique"
+     ],
+     "answer": 0,
+     "explanation": "Un hydrocarbure saturé (alcane) ne possède que des liaisons simples C−C ; un insaturé contient au moins une double ou triple liaison.",
+     "skill": "Saturation",
+     "difficulty": "moyen"
+    }
+   ]
+  }
+ ]
+}

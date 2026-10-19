@@ -1,0 +1,196 @@
+{
+ "banks": [
+  {
+   "topic": "anglais-premiere-methode-ecrit",
+   "questions": [
+    {
+     "prompt": "How should you organise a formal English essay?",
+     "options": [
+      "Introduction with a thesis, body paragraphs with one idea each, conclusion",
+      "One single long paragraph",
+      "Bullet points only",
+      "Conclusion first, then arguments"
+     ],
+     "answer": 0,
+     "explanation": "A formal essay follows: introduction (hook + thesis), body paragraphs (topic sentence, evidence, analysis), conclusion (restatement + opening).",
+     "skill": "Essay structure",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Which linking word expresses a concession?",
+     "options": [
+      "However",
+      "Therefore",
+      "Moreover",
+      "For instance"
+     ],
+     "answer": 0,
+     "explanation": "\"However\" introduces a contrast or concession; \"therefore\" a consequence, \"moreover\" an addition, \"for instance\" an example.",
+     "skill": "Linking words",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "How do you introduce a personal opinion in an argumentative text?",
+     "options": [
+      "\"In my view…\" / \"From my point of view…\"",
+      "\"I think maybe perhaps…\"",
+      "\"Everybody knows that…\"",
+      "\"It is obvious for all people…\""
+     ],
+     "answer": 0,
+     "explanation": "Academic phrasing: \"In my view\", \"I would argue that\", \"It seems to me that\". Avoid over-generalisations.",
+     "skill": "Expressing opinion",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "What is the difference between \"although\" and \"however\"?",
+     "options": [
+      "\"Although\" is a subordinating conjunction, \"however\" is an adverb linking two sentences",
+      "They are interchangeable",
+      "\"However\" is only used orally",
+      "\"Although\" expresses consequence"
+     ],
+     "answer": 0,
+     "explanation": "\"Although + clause\" cannot stand alone; \"however\" starts a new sentence and is followed by a comma.",
+     "skill": "Grammar in writing",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Which is the best way to paraphrase a source text?",
+     "options": [
+      "Restate the idea with different words and structure, keeping the meaning",
+      "Copy the sentence and change one word",
+      "Translate word for word",
+      "Quote without quotation marks"
+     ],
+     "answer": 0,
+     "explanation": "Paraphrasing requires changing both vocabulary and syntax while preserving the original meaning; quoting requires quotation marks.",
+     "skill": "Paraphrase",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "How should a synthesis of two documents be written?",
+     "options": [
+      "By comparing and contrasting their ideas, not by summarising them one after the other",
+      "By summarising document A, then document B",
+      "By translating both documents",
+      "By quoting the longest passages"
+     ],
+     "answer": 0,
+     "explanation": "A synthesis is organised around themes or points of agreement/disagreement between the documents.",
+     "skill": "Synthesis",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Which tense is generally used to comment on a novel or film?",
+     "options": [
+      "The present simple (\"literary present\")",
+      "The past simple",
+      "The present perfect continuous",
+      "The future"
+     ],
+     "answer": 0,
+     "explanation": "In English, analysis of a text or film uses the present tense: \"Hamlet hesitates\", \"the narrator questions…\".",
+     "skill": "Literary present",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "What is a topic sentence?",
+     "options": [
+      "The first sentence of a paragraph announcing its main idea",
+      "The last sentence of the essay",
+      "The title of the text",
+      "A sentence with no verb"
+     ],
+     "answer": 0,
+     "explanation": "Each body paragraph opens with a topic sentence stating the idea developed in the rest of the paragraph.",
+     "skill": "Paragraph structure",
+     "difficulty": "facile"
+    }
+   ]
+  },
+  {
+   "topic": "anglais-terminale-methode-oral",
+   "questions": [
+    {
+     "prompt": "How should you begin an oral presentation in English?",
+     "options": [
+      "Greet the examiners, state the topic and announce your plan",
+      "Read your notes silently",
+      "Start with a long quotation",
+      "Apologise for your level"
+     ],
+     "answer": 0,
+     "explanation": "A strong opening: greeting, presentation of the document/issue, announcement of the plan. It builds confidence and clarity.",
+     "skill": "Oral presentation",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "What is the best way to handle a question you did not understand?",
+     "options": [
+      "Ask politely for clarification: \"Could you rephrase that, please?\"",
+      "Stay silent",
+      "Change the subject",
+      "Answer in French"
+     ],
+     "answer": 0,
+     "explanation": "Interaction is assessed: reformulating the question or asking for clarification shows communicative competence.",
+     "skill": "Interaction",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Which strategy improves fluency during the oral exam?",
+     "options": [
+      "Using fillers naturally and keeping speaking without long pauses",
+      "Speaking as fast as possible",
+      "Memorising a full script word for word",
+      "Avoiding all linking words"
+     ],
+     "answer": 0,
+     "explanation": "Fluency comes from connected speech: \"well\", \"actually\", \"as a matter of fact\" give thinking time while keeping the flow.",
+     "skill": "Fluency",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "How should you present a document (article, cartoon, speech)?",
+     "options": [
+      "Nature, author, source, date, topic, then the main argument",
+      "Only the title",
+      "Only your personal opinion",
+      "Only the vocabulary list"
+     ],
+     "answer": 0,
+     "explanation": "The presentation grid: type of document, author, source, date, subject, thesis, structure, tone.",
+     "skill": "Document analysis",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "What is expected in the personal reaction part of the oral?",
+     "options": [
+      "A justified personal standpoint linked to cultural knowledge",
+      "A simple \"I like it\"",
+      "A summary of the document",
+      "A list of vocabulary"
+     ],
+     "answer": 0,
+     "explanation": "Examiners assess the ability to argue: opinion + reason + example (from the notion studied, current affairs, or personal experience).",
+     "skill": "Argumentation",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "How can you show cultural knowledge during the oral?",
+     "options": [
+      "By referring to key notions, historical references and studied documents",
+      "By quoting French celebrities",
+      "By speaking only about your hobbies",
+      "By avoiding all references"
+     ],
+     "answer": 0,
+     "explanation": "The programme notions (identity, citizenship, progress, etc.) provide the framework: connect the document to them explicitly.",
+     "skill": "Cultural knowledge",
+     "difficulty": "difficile"
+    }
+   ]
+  }
+ ]
+}

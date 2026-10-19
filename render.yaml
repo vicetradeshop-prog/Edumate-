@@ -1,0 +1,86 @@
+# ============================================================================
+#  EduMate — Configuration Render (« Infrastructure as Code »)
+#
+#  ⚠️  CE FICHIER EST VERSIONNÉ SUR GITHUB : n'y mets JAMAIS de secret.
+#      Les valeurs sensibles (SESSION_SECRET, UPSTASH_*, AI_API_KEY) se
+#      saisissent dans Render → ton service → onglet « Environment ».
+#
+#  Déploiement : Render → New + → Blueprint → sélectionne ce dépôt.
+#  (Méthode alternative, tout aussi valable : New + → Web Service.)
+# ============================================================================
+services:
+  - type: web
+    name: edumate
+    runtime: node
+    plan: free
+    region: frankfurt
+    # Node 20 : version testée et validée par les suites de tests du projet.
+    nodeVersion: 20.19.0
+    # --include=dev est INDISPENSABLE : Render positionne NODE_ENV=production
+    # pendant le build, ce qui ferait ignorer les devDependencies (tsx, vite,
+    # typescript) et échouer la compilation avec « tsx: not found ».
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    # ── Sommeil du plan gratuit ────────────────────────────────────────────
+    # Sur le plan gratuit, Render endort le service après 15 min d'inactivité :
+    # c'est une limite de la plateforme, pas un bug d'EduMate, et aucun réglage
+    # de ce fichier ne peut la désactiver. Trois parades, dans l'ordre :
+    #   1. côté client, EduMate maintient le serveur éveillé tant qu'un onglet
+    #      est ouvert (ping /api/health toutes les 9 min, activé par défaut) ;
+    #   2. entre deux visites, le service worker sert l'interface instantanément
+    #      et l'écran de réveil animé EduMate masque les ~10-30 s de démarrage ;
+    #   3. pour un service JAMAIS endormi : passer sur une instance payante,
+    #      ou ajouter un ping externe (ex. UptimeRobot, toutes les 10 min) —
+    #      attention au quota d'heures gratuites (~750 h/mois) si le service
+    #      tourne 24 h/24.
+
+    autoDeploy: true
+    # PORT est injectée automatiquement par Render : ne pas la définir ici.
+    envVars:
+      # --- Valeurs non sensibles : appliquées automatiquement ---
+      - key: NODE_ENV
+        value: production
+      - key: FALLBACK_STORAGE
+        value: memory
+      # Compte de démonstration partagé : DÉSACTIVÉ.
+      # Passe-le à "true" uniquement pour une démo ponctuelle.
+      - key: ALLOW_DEMO_ACCOUNT
+        value: "false"
+      - key: UPSTASH_KEY_PREFIX
+        value: edumate
+      # ⚠️ Laisse « none » ici : le fournisseur réel se choisit dans l'onglet
+      #    Environment, en même temps que la clé (qui, elle, ne se versionne
+      #    JAMAIS). Sans clé, EduMate utilise son tuteur intégré hors-ligne.
+      - key: AI_PROVIDER
+        value: none
+      # Utile en classe : tous les élèves derrière une seule IP publique (NAT)
+      - key: RATE_LIMIT_MAX
+        value: "1800"
+      - key: AUTH_RATE_LIMIT_MAX
+        value: "300"
+
+      # --- Secret généré par Render (jamais stocké dans le dépôt) ---
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # --- À saisir dans l'onglet Environment après création du service ---
+      # UPSTASH_REDIS_REST_URL   = https://xxxxxxxx.upstash.io
+      # UPSTASH_REDIS_REST_TOKEN = AXxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      # APP_URL                  = https://edumate-w87j.onrender.com
+      # ADMIN_EMAIL              = ton@email.fr   (facultatif : le 1er compte
+      #                             créé devient administrateur de toute façon)
+      #
+      # --- Assistant IA (facultatif mais recommandé) -----------------------
+      # AI_PROVIDER              = groq   (ou openai | mistral | xai)
+      # AI_API_KEY               = gsk_xxxx
+      #   🔐 LA CLÉ SE SAISIT ICI, JAMAIS DANS LE CODE.
+      #      Une clé écrite dans un fichier du dépôt est :
+      #        1. refusée au push par GitHub Push Protection (erreur GH013),
+      #        2. compromise définitivement (à révoquer dans la console),
+      #        3. encore présente dans l'historique git après suppression.
+      #      Contrôle local avant publication :  node scripts/scan-secrets.mjs
+      #   Groq (gratuit) : https://console.groq.com  →  Create API Key
+      #   xAI / Grok     : https://console.x.ai      →  API Keys
+      # AI_MODEL                 = (vide = défaut du fournisseur)
+      #   Groq openai/gpt-oss-120b · OpenAI gpt-4o-mini · xAI grok-4-fast

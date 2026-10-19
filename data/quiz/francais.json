@@ -1,0 +1,606 @@
+{
+ "banks": [
+  {
+   "topic": "francais-troisieme-methode-redaction",
+   "questions": [
+    {
+     "prompt": "Quelle est la structure minimale d’un paragraphe argumentatif au collège ?",
+     "options": [
+      "Idée principale, argument, exemple, conclusion partielle",
+      "Une seule phrase d’accroche",
+      "Trois exemples sans lien entre eux",
+      "Une citation sans commentaire"
+     ],
+     "answer": 0,
+     "explanation": "Un paragraphe développé suit la progression : idée → argument → exemple → mini-conclusion. C’est la règle AEI (affirmer, expliquer, illustrer).",
+     "skill": "Structure du paragraphe",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Que doit contenir l’introduction d’un texte argumentatif ?",
+     "options": [
+      "Une accroche, la présentation du sujet, la problématique et l’annonce du plan",
+      "Uniquement la thèse défendue",
+      "Une conclusion anticipée",
+      "Une liste d’exemples"
+     ],
+     "answer": 0,
+     "explanation": "L’introduction va du général au particulier : accroche, sujet, problématique, annonce du plan.",
+     "skill": "Introduction",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Quel connecteur exprime une conséquence ?",
+     "options": [
+      "Par conséquent",
+      "Cependant",
+      "Par exemple",
+      "En effet"
+     ],
+     "answer": 0,
+     "explanation": "« Par conséquent » introduit la conséquence ; « cependant » l’opposition, « par exemple » l’illustration, « en effet » l’explication.",
+     "skill": "Connecteurs logiques",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Comment introduire correctement une citation dans une rédaction ?",
+     "options": [
+      "Entre guillemets, en précisant la source et en l’expliquant",
+      "En recopiant le texte sans guillemets",
+      "En la plaçant uniquement en conclusion",
+      "En la remplaçant par un résumé personnel"
+     ],
+     "answer": 0,
+     "explanation": "Une citation se signale par des guillemets, s’accompagne de sa source et doit toujours être expliquée pour servir l’argumentation.",
+     "skill": "Citation",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel temps utilise-t-on pour les actions de premier plan d’un récit au passé ?",
+     "options": [
+      "Le passé simple",
+      "L’imparfait",
+      "Le présent",
+      "Le futur simple"
+     ],
+     "answer": 0,
+     "explanation": "Le passé simple exprime les actions ponctuelles et de premier plan ; l’imparfait décrit le décor et les actions duratives.",
+     "skill": "Temps du récit",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Que faut-il vérifier en priorité lors de la relecture d’une rédaction ?",
+     "options": [
+      "L’orthographe, les accords et la cohérence des paragraphes",
+      "La longueur du texte uniquement",
+      "La beauté de l’écriture manuscrite",
+      "Le nombre de citations"
+     ],
+     "answer": 0,
+     "explanation": "La relecture porte d’abord sur la langue (orthographe, accords, conjugaison) puis sur la cohérence et les transitions.",
+     "skill": "Relecture",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Quel est le rôle d’une phrase de transition entre deux paragraphes ?",
+     "options": [
+      "Récapituler l’idée précédente et annoncer la suivante",
+      "Répéter la même idée",
+      "Introduire une nouvelle citation",
+      "Conclure le devoir"
+     ],
+     "answer": 0,
+     "explanation": "La transition assure la continuité du raisonnement : elle ferme une étape et ouvre la suivante.",
+     "skill": "Transitions",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment éviter les répétitions dans un texte ?",
+     "options": [
+      "En utilisant des synonymes et des reprises pronominales",
+      "En supprimant tous les adjectifs",
+      "En écrivant des phrases très longues",
+      "En répétant le mot-clé pour insister"
+     ],
+     "answer": 0,
+     "explanation": "La variété lexicale (synonymes, périphrases) et les pronoms anaphoriques évitent la répétition tout en maintenant la cohérence.",
+     "skill": "Cohésion du texte",
+     "difficulty": "moyen"
+    }
+   ]
+  },
+  {
+   "topic": "francais-troisieme-methode-brevet",
+   "questions": [
+    {
+     "prompt": "Combien de temps dure l’épreuve écrite de français du brevet ?",
+     "options": [
+      "3 heures",
+      "1 heure",
+      "2 heures",
+      "4 heures"
+     ],
+     "answer": 0,
+     "explanation": "L’épreuve de français du DNB dure 3 heures : grammaire et compétences linguistiques, compréhension de texte, puis rédaction (ou dictée).",
+     "skill": "Organisation de l’épreuve",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Sur combien de points est évaluée la rédaction au brevet ?",
+     "options": [
+      "40 points",
+      "10 points",
+      "20 points",
+      "100 points"
+     ],
+     "answer": 0,
+     "explanation": "La rédaction (sujet d’imagination ou de réflexion) est notée sur 40 points ; l’épreuve écrite compte 100 points.",
+     "skill": "Barème",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Quelle stratégie est la plus efficace pour répondre à une question de compréhension ?",
+     "options": [
+      "Citer précisément le texte puis interpréter",
+      "Recopier tout le paragraphe",
+      "Répondre d’après ses connaissances personnelles",
+      "Laisser la réponse vide en cas d’hésitation"
+     ],
+     "answer": 0,
+     "explanation": "Une réponse complète s’appuie sur une citation exacte (guillemets) puis une interprétation justifiée.",
+     "skill": "Compréhension de texte",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Que signifie « réécrire » dans l’exercice de réécriture du brevet ?",
+     "options": [
+      "Transformer un passage selon une consigne grammaticale précise (temps, personne, nombre)",
+      "Recopier le texte à l’identique",
+      "Résumer le passage en trois lignes",
+      "Traduire le passage"
+     ],
+     "answer": 0,
+     "explanation": "L’exercice de réécriture porte sur la langue : changement de temps, de personne, de nombre… Il faut être exhaustif et vigilant sur les accords.",
+     "skill": "Réécriture",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Pour un sujet d’imagination, que faut-il absolument respecter ?",
+     "options": [
+      "La consigne, le lien avec le texte ou l’œuvre et la longueur demandée",
+      "Uniquement la longueur",
+      "L’absence de dialogue",
+      "Le récit à la troisième personne"
+     ],
+     "answer": 0,
+     "explanation": "Un sujet d’imagination reste contraint : respecter la consigne, s’inscrire dans l’univers proposé et tenir la longueur demandée.",
+     "skill": "Sujet d’imagination",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Dans un sujet de réflexion, comment organiser ses arguments ?",
+     "options": [
+      "Un paragraphe par argument, chacun illustré par un exemple précis",
+      "Tous les arguments dans un seul paragraphe",
+      "Des exemples sans arguments",
+      "Une thèse sans justification"
+     ],
+     "answer": 0,
+     "explanation": "Le sujet de réflexion exige une argumentation structurée : thèse, arguments hiérarchisés, exemples variés (lectures, histoire, actualité).",
+     "skill": "Sujet de réflexion",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle part du brevet représente la maîtrise du socle commun ?",
+     "options": [
+      "400 points sur 800",
+      "100 points sur 800",
+      "50 points sur 800",
+      "200 points sur 800"
+     ],
+     "answer": 0,
+     "explanation": "Le DNB totalise 800 points : 400 pour le socle commun (évaluation continue) et 400 pour les épreuves écrites et l’oral.",
+     "skill": "Notation du brevet",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Quelle est la meilleure gestion du temps sur les 3 heures de français ?",
+     "options": [
+      "Répartir selon le barème et garder 15 minutes de relecture",
+      "Passer 2 heures sur la première question",
+      "Commencer par la rédaction sans lire le texte",
+      "Écrire la dictée en premier"
+     ],
+     "answer": 0,
+     "explanation": "On proportionne le temps au nombre de points, et on garde systématiquement un temps de relecture finale.",
+     "skill": "Gestion du temps",
+     "difficulty": "moyen"
+    }
+   ]
+  },
+  {
+   "topic": "francais-seconde-methode-commentaire",
+   "questions": [
+    {
+     "prompt": "Quelle est la démarche fondamentale d’un commentaire littéraire ?",
+     "options": [
+      "Décrire, expliquer puis interpréter en citant le texte",
+      "Raconter l’histoire du passage",
+      "Donner son avis personnel sans citation",
+      "Résumer le texte paragraphe par paragraphe"
+     ],
+     "answer": 0,
+     "explanation": "Le commentaire n’est ni un résumé ni une paraphrase : il observe des procédés, les explique et en propose une interprétation justifiée.",
+     "skill": "Démarche du commentaire",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Qu’est-ce que la paraphrase, écueil majeur du commentaire ?",
+     "options": [
+      "Redire le texte avec d’autres mots sans l’analyser",
+      "Citer trop précisément le texte",
+      "Analyser les figures de style",
+      "Proposer un plan en deux parties"
+     ],
+     "answer": 0,
+     "explanation": "La paraphrase répète le contenu sans en dégager le fonctionnement ni l’intérêt : elle doit être remplacée par l’analyse de procédés.",
+     "skill": "Paraphrase",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment construire les axes d’un commentaire ?",
+     "options": [
+      "À partir des effets produits par le texte, et non du déroulement du récit",
+      "En suivant l’ordre des paragraphes",
+      "En classant les figures de style par ordre alphabétique",
+      "En reprenant la biographie de l’auteur"
+     ],
+     "answer": 0,
+     "explanation": "Un axe répond à la question : « que fait ce texte au lecteur et comment ? » Chaque axe regroupe plusieurs procédés convergents.",
+     "skill": "Axes d’analyse",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle citation est correctement intégrée dans une phrase d’analyse ?",
+     "options": [
+      "Le poète évoque une nature mourante : « les feuilles tombent ».",
+      "Les feuilles tombent.",
+      "« les feuilles tombent » nature mourante",
+      "Le texte dit que les feuilles tombent et c’est triste."
+     ],
+     "answer": 0,
+     "explanation": "Une citation doit être introduite, encadrée de guillemets et immédiatement suivie d’une analyse (procédé + effet).",
+     "skill": "Citation et analyse",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quels procédés repérer en priorité dans un texte poétique ?",
+     "options": [
+      "Le rythme, les sonorités, les images et la ponctuation",
+      "Uniquement le nombre de strophes",
+      "La biographie du poète",
+      "Le genre du poème"
+     ],
+     "answer": 0,
+     "explanation": "En poésie, la forme fait sens : mètres, enjambements, allitérations, assonances, images et ponctuation sont des objets d’analyse.",
+     "skill": "Analyse poétique",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que doit contenir la conclusion d’un commentaire ?",
+     "options": [
+      "Le bilan des axes et une ouverture pertinente",
+      "Une nouvelle analyse du texte",
+      "La biographie complète de l’auteur",
+      "Le résumé du passage"
+     ],
+     "answer": 0,
+     "explanation": "La conclusion synthétise la lecture proposée puis ouvre vers une autre œuvre, un autre mouvement ou un enjeu littéraire.",
+     "skill": "Conclusion",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Comment analyser un champ lexical dans un commentaire ?",
+     "options": [
+      "Relever les termes, montrer leur cohérence et l’effet produit",
+      "Lister les mots sans commentaire",
+      "Compter le nombre d’occurrences",
+      "Chercher les synonymes dans un dictionnaire"
+     ],
+     "answer": 0,
+     "explanation": "Le relevé n’a de valeur que s’il débouche sur une interprétation : quel univers le champ lexical construit-il, et pourquoi ?",
+     "skill": "Champ lexical",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est le rôle de l’introduction d’un commentaire ?",
+     "options": [
+      "Situer le texte, dégager une problématique et annoncer le plan",
+      "Résumer l’intrigue en détail",
+      "Citer le texte intégralement",
+      "Présenter la conclusion"
+     ],
+     "answer": 0,
+     "explanation": "Introduction type : présentation (auteur, œuvre, contexte du passage), caractérisation du texte, problématique, annonce du plan.",
+     "skill": "Introduction",
+     "difficulty": "moyen"
+    }
+   ]
+  },
+  {
+   "topic": "francais-seconde-methode-dissertation",
+   "questions": [
+    {
+     "prompt": "Qu’est-ce qu’une problématique de dissertation ?",
+     "options": [
+      "Une question qui met en tension deux réponses également défendables",
+      "Le rappel du sujet",
+      "Une liste de mots-clés",
+      "La conclusion anticipée du devoir"
+     ],
+     "answer": 0,
+     "explanation": "La problématique naît d’un paradoxe ou d’une ambiguïté du sujet : elle rend le débat nécessaire plutôt que de poser une question fermée.",
+     "skill": "Problématique",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quel plan est le plus courant pour une dissertation littéraire ?",
+     "options": [
+      "Plan dialectique : thèse, antithèse, dépassement",
+      "Plan chronologique imposé",
+      "Plan en une seule partie",
+      "Plan par œuvres successives"
+     ],
+     "answer": 0,
+     "explanation": "Le plan dialectique confronte deux positions puis les dépasse ; le plan thématique ou analytique est possible selon le sujet.",
+     "skill": "Types de plan",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Que doit contenir chaque sous-partie d’une dissertation ?",
+     "options": [
+      "Un argument, un exemple précis et une analyse",
+      "Uniquement des exemples",
+      "Uniquement des citations",
+      "Une opinion personnelle non justifiée"
+     ],
+     "answer": 0,
+     "explanation": "Règle d’or : un paragraphe = une idée, une preuve (œuvre, texte, référence), une explication qui relie l’exemple à l’argument.",
+     "skill": "Paragraphe argumentatif",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Pourquoi éviter le catalogue d’exemples dans une dissertation ?",
+     "options": [
+      "Parce qu’un exemple non analysé ne prouve rien",
+      "Parce que les exemples sont interdits",
+      "Parce qu’il faut citer uniquement des œuvres du programme",
+      "Parce que cela allonge inutilement la conclusion"
+     ],
+     "answer": 0,
+     "explanation": "La qualité d’une dissertation tient au raisonnement : trois exemples analysés valent mieux que dix exemples énumérés.",
+     "skill": "Argumentation",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quelle formulation annonce correctement un plan dans une introduction ?",
+     "options": [
+      "« Nous verrons d’abord que…, puis nous montrerons que…, enfin nous nous demanderons si… »",
+      "« Je vais parler de… »",
+      "« Le plan est le suivant : 1, 2, 3 »",
+      "« Voici mes idées »"
+     ],
+     "answer": 0,
+     "explanation": "L’annonce de plan doit être fluide, rédigée et logique : elle reprend exactement les intitulés des parties.",
+     "skill": "Annonce du plan",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Comment rédiger une transition entre deux parties ?",
+     "options": [
+      "En concluant la partie précédente et en justifiant le passage à la suivante",
+      "En répétant l’introduction",
+      "En sautant une ligne sans texte",
+      "En annonçant la conclusion"
+     ],
+     "answer": 0,
+     "explanation": "La transition assure la continuité du raisonnement : bilan + question qui appelle la partie suivante.",
+     "skill": "Transitions",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est l’écueil du « hors-sujet » en dissertation ?",
+     "options": [
+      "Répondre à une question que le sujet ne pose pas",
+      "Citer trop d’œuvres",
+      "Utiliser un plan dialectique",
+      "Écrire une conclusion longue"
+     ],
+     "answer": 0,
+     "explanation": "Le hors-sujet vient d’une lecture rapide des termes du sujet : il faut définir chaque mot-clé avant de bâtir le plan.",
+     "skill": "Hors-sujet",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quelle longueur vise-t-on pour une dissertation au lycée ?",
+     "options": [
+      "4 à 6 pages manuscrites équilibrées entre les parties",
+      "1 page maximum",
+      "10 pages",
+      "Peu importe la longueur"
+     ],
+     "answer": 0,
+     "explanation": "L’équilibre compte autant que la longueur : des parties de taille comparable témoignent d’une pensée structurée.",
+     "skill": "Gestion du devoir",
+     "difficulty": "facile"
+    }
+   ]
+  },
+  {
+   "topic": "francais-premiere-methode-contraction",
+   "questions": [
+    {
+     "prompt": "Quelle est la règle essentielle de la contraction de texte ?",
+     "options": [
+      "Respecter le nombre de mots imposé et conserver le mouvement du texte",
+      "Réécrire le texte avec ses propres idées",
+      "Supprimer tous les exemples",
+      "Traduire le texte en langage familier"
+     ],
+     "answer": 0,
+     "explanation": "La contraction suit l’ordre et la logique de l’original, reformule sans paraphraser et respecte le quota de mots (± 10 %).",
+     "skill": "Règles de la contraction",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment compter les mots en contraction de texte ?",
+     "options": [
+      "Selon la règle officielle : « c’est-à-dire » = 3 mots, « aujourd’hui » = 1 mot",
+      "Selon le nombre de lettres",
+      "Selon les espaces uniquement, sans exception",
+      "Selon son appréciation personnelle"
+     ],
+     "answer": 0,
+     "explanation": "Tout ce qui est séparé par un signe de ponctuation ou d’espacement compte pour un mot ; « aujourd’hui » compte pour un, « c’est-à-dire » pour trois.",
+     "skill": "Comptage des mots",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que faut-il faire avant de rédiger une contraction ?",
+     "options": [
+      "Découper le texte en mouvements et reformuler chacun au brouillon",
+      "Recopier le texte en supprimant des phrases",
+      "Commencer directement la rédaction",
+      "Chercher des citations à placer"
+     ],
+     "answer": 0,
+     "explanation": "La méthode : lecture active, découpage en mouvements, reformulation de chaque mouvement, puis calibrage du nombre de mots.",
+     "skill": "Méthode de contraction",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quelle reformulation est acceptable dans une contraction ?",
+     "options": [
+      "Une reformulation fidèle au sens, avec ses propres mots",
+      "Une copie exacte de la phrase d’origine",
+      "Une interprétation personnelle qui change le sens",
+      "Une phrase plus longue que l’originale"
+     ],
+     "answer": 0,
+     "explanation": "On doit reformuler sans trahir : ni démarquage mot à mot, ni contresens, ni ajout d’idées absentes du texte.",
+     "skill": "Reformulation",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Quel élément doit obligatoirement figurer sur la copie ?",
+     "options": [
+      "Le nombre de mots, indiqué en fin de contraction",
+      "Le titre du texte",
+      "La biographie de l’auteur",
+      "Un plan détaillé"
+     ],
+     "answer": 0,
+     "explanation": "Le candidat reporte le décompte des mots à la fin de sa contraction ; l’oubli ou l’erreur de comptage est sanctionné.",
+     "skill": "Présentation de la copie",
+     "difficulty": "facile"
+    },
+    {
+     "prompt": "Comment traiter les exemples dans une contraction ?",
+     "options": [
+      "Les condenser ou les généraliser, sans supprimer ceux qui portent l’argumentation",
+      "Les supprimer systématiquement",
+      "Les recopier intégralement",
+      "Les remplacer par des exemples personnels"
+     ],
+     "answer": 0,
+     "explanation": "Un exemple qui illustre l’argument doit être conservé sous forme condensée ; un exemple purement décoratif peut disparaître.",
+     "skill": "Traitement des exemples",
+     "difficulty": "difficile"
+    }
+   ]
+  },
+  {
+   "topic": "francais-premiere-methode-oral",
+   "questions": [
+    {
+     "prompt": "Comment se déroule l’oral de français du bac (épreuve anticipée) ?",
+     "options": [
+      "Préparation de 30 minutes, puis exposé et entretien de 20 minutes",
+      "10 minutes de préparation, 5 minutes d’exposé",
+      "Exposé de 40 minutes sans préparation",
+      "Lecture à voix haute uniquement"
+     ],
+     "answer": 0,
+     "explanation": "L’oral dure 20 minutes après 30 minutes de préparation : explication linéaire, question de grammaire, puis entretien.",
+     "skill": "Déroulé de l’épreuve",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quelles sont les étapes attendues d’une explication linéaire ?",
+     "options": [
+      "Introduction, lecture, mouvements du texte, analyse progressive, conclusion",
+      "Lecture seule",
+      "Résumé puis avis personnel",
+      "Analyse globale sans suivre le texte"
+     ],
+     "answer": 0,
+     "explanation": "L’explication linéaire suit le déroulé du texte : on découpe en mouvements et on analyse les procédés dans l’ordre.",
+     "skill": "Explication linéaire",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quel est l’objectif de l’entretien avec l’examinateur ?",
+     "options": [
+      "Défendre ses lectures, argumenter et montrer sa culture littéraire",
+      "Réciter une fiche par cœur",
+      "Résumer l’œuvre en une phrase",
+      "Éviter toute prise de position"
+     ],
+     "answer": 0,
+     "explanation": "L’entretien évalue la capacité à dialoguer : justifier un choix de lecture, relier des œuvres, argumenter avec précision.",
+     "skill": "Entretien",
+     "difficulty": "difficile"
+    },
+    {
+     "prompt": "Que faut-il préparer pour la seconde partie de l’oral ?",
+     "options": [
+      "Une œuvre intégrale choisie parmi celles étudiées, à présenter et défendre",
+      "Un poème appris par cœur",
+      "Une dissertation rédigée",
+      "Une fiche de grammaire"
+     ],
+     "answer": 0,
+     "explanation": "Le candidat présente l’œuvre de son choix parmi la liste, en explique les enjeux et répond aux questions de l’examinateur.",
+     "skill": "Présentation d’œuvre",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Quelle question de grammaire est typiquement posée à l’oral ?",
+     "options": [
+      "Analyser une négation, une interrogation ou une subordonnée du texte",
+      "Conjuguer un verbe au subjonctif",
+      "Recopier une règle d’accord",
+      "Traduire une phrase en latin"
+     ],
+     "answer": 0,
+     "explanation": "La partie grammaire porte sur l’analyse syntaxique d’un court passage : négation, interrogation, subordonnées.",
+     "skill": "Grammaire à l’oral",
+     "difficulty": "moyen"
+    },
+    {
+     "prompt": "Comment gérer les 30 minutes de préparation ?",
+     "options": [
+      "Bâtir un plan détaillé avec citations et procédés, sans tout rédiger",
+      "Rédiger intégralement l’exposé",
+      "Recopier le texte au propre",
+      "Apprendre par cœur une introduction"
+     ],
+     "answer": 0,
+     "explanation": "Le temps est limité : on note les mouvements, les procédés, les citations clés et l’analyse de grammaire en style télégraphique.",
+     "skill": "Gestion de la préparation",
+     "difficulty": "difficile"
+    }
+   ]
+  }
+ ]
+}

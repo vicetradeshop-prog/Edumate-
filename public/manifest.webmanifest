@@ -1,0 +1,33 @@
+{
+  "name": "EduMate — Réussir ensemble",
+  "short_name": "EduMate",
+  "description": "Espace scolaire tout-en-un : assistant IA, quiz corrigés, calendrier, minuteur, tableau interactif, traducteur et musique de concentration.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#07040f",
+  "theme_color": "#0b0619",
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
