@@ -313,19 +313,87 @@ export function hasAiProvider(): boolean {
 /*  Adresses publiques                                                 */
 /* ------------------------------------------------------------------ */
 
+/** Retire les « / » finaux et les espaces d'une URL. */
+function stripUrl(value: string | undefined): string {
+  return String(value ?? '').trim().replace(/\/+$/, '');
+}
+
+/** Reconnaît une URL de service Render (`https://xxxx.onrender.com`). */
+const RENDER_URL_RE = /^https?:\/\/[a-z0-9][a-z0-9-]*\.onrender\.com$/i;
+
+export interface AppUrlResolution {
+  /** Base retenue, sans « / » final. Vide si aucune URL publique n'est connue. */
+  base: string;
+  /** D'où vient la valeur retenue — indispensable au diagnostic. */
+  source: 'APP_URL' | 'RENDER_EXTERNAL_URL' | 'developpement' | 'aucune';
+  /** `APP_URL` pointe vers un service Render qui n'est plus celui-ci. */
+  stale: boolean;
+  /** Avertissement lisible, ou `null`. */
+  warning: string | null;
+}
+
+/**
+ * Détermine l'URL publique du site — la base de TOUS les liens envoyés par
+ * e-mail (réinitialisation de mot de passe, confirmation).
+ *
+ * 🔴 **Le piège corrigé ici.** Un service Render déplacé ou recréé change
+ * d'URL (`edumate-w87j.onrender.com` → `edumateapp.onrender.com`), mais
+ * `APP_URL` reste saisie à la main dans l'onglet Environment : elle continue
+ * donc de pointer vers l'ancien service, qui renvoie désormais un 404. Chaque
+ * e-mail de réinitialisation contenait alors un lien mort — l'élève cliquait et
+ * tombait sur « Not Found », sans aucun indice côté serveur.
+ *
+ * Règle appliquée : quand `APP_URL` ET `RENDER_EXTERNAL_URL` sont toutes deux
+ * des URL `*.onrender.com` et DIFFÈRENT, c'est sans ambiguïté un service déplacé
+ * — on utilise celle que Render injecte, et on journalise un avertissement.
+ * Dans tous les autres cas `APP_URL` garde la priorité : c'est elle qui porte un
+ * domaine personnalisé (`edumate.mon-lycee.fr`), que Render ne connaît pas.
+ *
+ * 🔒 **Pourquoi ne pas lire l'en-tête `Host` de la requête ?** Ce serait la
+ * solution la plus « automatique », et la plus dangereuse : un attaquant peut
+ * envoyer `POST /api/auth/forgot` avec un `Host: evil.com` forgé, le lien reçu
+ * par la victime pointerait alors vers son serveur et il récupérerait le jeton
+ * (empoisonnement de lien de réinitialisation). `RENDER_EXTERNAL_URL` est posé
+ * par la plateforme, jamais par le client : il ne peut pas être forgé.
+ */
+export function resolveAppUrl(): AppUrlResolution {
+  const explicit = stripUrl(config.appUrl);
+  const render = stripUrl(process.env.RENDER_EXTERNAL_URL);
+
+  if (explicit && render && RENDER_URL_RE.test(explicit) && RENDER_URL_RE.test(render)
+      && explicit.toLowerCase() !== render.toLowerCase()) {
+    return {
+      base: render,
+      source: 'RENDER_EXTERNAL_URL',
+      stale: true,
+      warning:
+        `APP_URL vaut « ${explicit} » alors que ce service est servi sur « ${render} » : ` +
+        'les liens envoyés par e-mail pointeraient vers un service Render qui n’existe plus (404). ' +
+        `EduMate utilise « ${render} » automatiquement. Corrige APP_URL dans Render → Environment.`,
+    };
+  }
+  if (explicit) return { base: explicit, source: 'APP_URL', stale: false, warning: null };
+  if (render) return { base: render, source: 'RENDER_EXTERNAL_URL', stale: false, warning: null };
+  if (!config.isProduction) {
+    return { base: 'http://localhost:5173', source: 'developpement', stale: false, warning: null };
+  }
+  return {
+    base: '',
+    source: 'aucune',
+    stale: false,
+    warning:
+      'Aucune URL publique connue : APP_URL est absente et RENDER_EXTERNAL_URL non plus. ' +
+      'Les liens des e-mails seraient relatifs, donc inutilisables depuis une boîte mail. ' +
+      'Renseigne APP_URL dans Render → Environment.',
+  };
+}
+
 /**
  * Base publique du site, sans « / » final.
- *
- * `APP_URL` prime (c'est la valeur renseignée sur Render). En son absence on
- * retombe sur l'URL d'exécution fournie par Render (`RENDER_EXTERNAL_URL`),
- * puis sur localhost en développement. Sert à construire les liens des e-mails :
- * un lien relatif y serait inutilisable.
+ * Sert à construire les liens des e-mails : un lien relatif y serait inutilisable.
  */
 export function appBaseUrl(): string {
-  const explicit = (config.appUrl ?? '').trim();
-  const render = (process.env.RENDER_EXTERNAL_URL ?? '').trim();
-  const base = explicit || render || (config.isProduction ? '' : 'http://localhost:5173');
-  return base.replace(/\/+$/, '');
+  return resolveAppUrl().base;
 }
 
 /**

@@ -44,6 +44,11 @@ interface MailStatus {
   apiKey: string;
   smtp: { host: string; port: number; user: string; passSet: boolean };
   remainingTests: number;
+  /** URL publique utilisée comme base des liens envoyés par e-mail. */
+  linkBase: string;
+  linkBaseSource: string;
+  linkBaseReachable: boolean | null;
+  linkBaseStatus: number | null;
 }
 
 interface CatalogDetail {
@@ -69,6 +74,36 @@ export default function AdminPage() {
   const [mailTestTo, setMailTestTo] = useState('');
   const [mailTesting, setMailTesting] = useState(false);
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [probing, setProbing] = useState(false);
+
+  /**
+   * Revérifie que l'URL des liens répond réellement.
+   *
+   * Un `APP_URL` périmé ne produit AUCUNE erreur : l'e-mail part, le lien est
+   * bien formé, et l'élève tombe sur un 404. C'est le seul contrôle qui le
+   * révèle avant qu'un élève ne le découvre.
+   */
+  const probeLink = async (): Promise<void> => {
+    setProbing(true);
+    try {
+      const result = await api.post<{ base: string; ok: boolean; status: number | null; error: string | null }>(
+        '/api/admin/mail-probe',
+        {},
+      );
+      setMailTestResult(
+        result.ok
+          ? { ok: true, text: `Lien vérifié : ${result.base} répond ${result.status ?? 200}.` }
+          : { ok: false, text: `🔴 ${result.error ?? `${result.base} injoignable`} — corrige APP_URL dans Render → Environment.` },
+      );
+      if (result.ok) toast.success('URL des liens opérationnelle.');
+      else toast.error('URL des liens injoignable : les e-mails contiendraient un lien mort.');
+    } catch (error) {
+      setMailTestResult({ ok: false, text: error instanceof Error ? error.message : 'Vérification impossible.' });
+    } finally {
+      setProbing(false);
+      void mail.reload();
+    }
+  };
 
   /**
    * Envoie un VRAI e-mail de test : seul moyen de valider la chaîne complète
@@ -364,6 +399,51 @@ export default function AdminPage() {
                 </div>
 
                 <p className="ed-small ed-soft">{mail.data.behaviour ?? 'État inconnu.'}</p>
+
+                {/*
+                  🔴 L'information la plus importante de cette carte.
+                  Un APP_URL périmé (service Render déplacé ou recréé) ne déclenche
+                  aucune erreur : les e-mails partent avec un lien mort. On affiche
+                  donc la base EFFECTIVE, sa provenance, et sa joignabilité.
+                */}
+                <div
+                  className="ed-row"
+                  style={{
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--ed-radius-sm)',
+                    background: 'var(--ed-surface-2)',
+                    border: '1px solid var(--ed-border)',
+                  }}
+                >
+                  <Badge
+                    tone={
+                      mail.data.linkBaseReachable === false ? 'danger' : mail.data.linkBaseReachable ? 'success' : 'warning'
+                    }
+                  >
+                    {mail.data.linkBaseReachable === false
+                      ? 'lien mort'
+                      : mail.data.linkBaseReachable
+                        ? 'lien vérifié'
+                        : 'lien non testé'}
+                  </Badge>
+                  <span className="ed-small">
+                    URL des liens : <code>{mail.data.linkBase || '(aucune)'}</code>{' '}
+                    <span className="ed-mute">— source : {mail.data.linkBaseSource}</span>
+                  </span>
+                  <Button size="sm" variant="ghost" loading={probing} onClick={() => void probeLink()}>
+                    Vérifier maintenant
+                  </Button>
+                </div>
+
+                {mail.data.linkBaseSource === 'RENDER_EXTERNAL_URL' && mail.data.linkBase ? (
+                  <p className="ed-small ed-mute">
+                    ℹ️ <code>APP_URL</code> n’est pas à jour : EduMate utilise l’URL injectée par Render. Pense à
+                    corriger <code>APP_URL</code> dans Render → Environment.
+                  </p>
+                ) : null}
 
                 {mail.data.provider === 'smtp' && mail.data.smtp.host ? (
                   <p className="ed-small ed-mute">

@@ -9,7 +9,7 @@
 import { Router } from 'express';
 import { deleteUser, findUserById, listUsers, updateUser, toPublicUser } from '../lib/store.js';
 import { asyncHandler, badRequest, notFound, requireAdmin, requireCsrf, tooManyRequests } from '../lib/middleware.js';
-import { buildMailTemplate, diagnoseMailer, hasMailer, sendMail } from '../lib/mailer.js';
+import { buildMailTemplate, diagnoseMailer, hasMailer, probeLinkBase, sendMail } from '../lib/mailer.js';
 import { requireEmail } from '../lib/validation.js';
 import { getCatalog } from '../lib/catalog.js';
 import { buildQuiz } from '../content/index.js';
@@ -81,6 +81,35 @@ adminRouter.get('/mail-status', (_req, res) => {
     remainingTests: Math.max(0, MAIL_TEST_MAX - (Date.now() - mailTestWindow.start < MAIL_TEST_WINDOW_MS ? mailTestWindow.count : 0)),
   });
 });
+
+/**
+ * POST /api/admin/mail-probe — revérifie que l'URL des liens répond.
+ *
+ * Séparé de `mail-status` parce que la sonde fait une vraie requête HTTP
+ * (jusqu'à 8 s) : elle ne doit pas ralentir l'ouverture du panneau. Le bouton
+ * « Recharger » de la carte E-mails l'appelle explicitement.
+ *
+ * C'est le contrôle qui aurait évité l'incident « lien mort » : un `APP_URL`
+ * périmé ne déclenche aucune erreur, ni à l'envoi ni dans les journaux.
+ */
+adminRouter.post(
+  '/mail-probe',
+  asyncHandler(async (_req, res) => {
+    const result = await probeLinkBase();
+    const diagnosis = diagnoseMailer();
+    if (result.ok) {
+      console.log(`[EduMate] ✔ URL des liens vérifiée à la demande : ${result.base}`);
+    } else {
+      console.warn(`[EduMate] 🔴 URL des liens injoignable : ${result.error}`);
+    }
+    res.json({
+      ...result,
+      linkBase: diagnosis.linkBase,
+      linkBaseSource: diagnosis.linkBaseSource,
+      warnings: diagnosis.warnings,
+    });
+  }),
+);
 
 /**
  * POST /api/admin/mail-test — envoie VRAIMENT un e-mail de test.

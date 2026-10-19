@@ -22,7 +22,7 @@ import express, { type Express, type RequestHandler } from 'express';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 
-import { config, hasAiProvider, appBaseUrl } from './lib/config.js';
+import { config, hasAiProvider, resolveAppUrl } from './lib/config.js';
 import { getStartupError, getStorage } from './lib/storage.js';
 import { catalogError, getCatalog } from './lib/catalog.js';
 import { attachUser, errorHandler, notFoundHandler, rateLimit, securityHeaders } from './lib/middleware.js';
@@ -38,7 +38,7 @@ import { feedRouter } from './routes/feed.js';
 import { planningRouter } from './routes/planning.js';
 import { findUserByEmail, setUserPassword, updateUser } from './lib/store.js';
 import { hashPassword } from './lib/auth.js';
-import { diagnoseMailer, mailerStats, mailerStatus, warnMailerPitfalls } from './lib/mailer.js';
+import { diagnoseMailer, linkBaseStatus, mailerStats, mailerStatus, probeLinkBase, warnMailerPitfalls } from './lib/mailer.js';
 import { revokeResetTokens, sweepExpiredResetTokens } from './lib/passwordReset.js';
 import { passwordIssues } from './lib/validate.js';
 
@@ -87,6 +87,8 @@ export function createApp(): Express {
     const database = await store.health();
     const mail = mailerStatus();
     const mailCounters = mailerStats();
+    const resolved = resolveAppUrl();
+    const probeResult = linkBaseStatus();
     res.json({
       ok: true,
       app: 'EduMate',
@@ -120,6 +122,15 @@ export function createApp(): Express {
         lastSentAt: mailCounters.lastSentAt,
         resetLinkTtlMinutes: config.passwordReset.ttlMinutes,
         resetPath: config.passwordReset.path,
+        /*
+         * Base effective des liens envoyés par e-mail, et sa joignabilité.
+         * Rendu public parce que c'est l'URL du site lui-même (aucune donnée
+         * sensible) et que c'est LE premier réflexe de diagnostic quand un élève
+         * signale « le lien ne marche pas ».
+         */
+        linkBase: resolved.base || null,
+        linkBaseSource: resolved.source,
+        linkBaseReachable: probeResult.base === resolved.base ? probeResult.ok : null,
       },
       catalog: {
         subjects: catalog.stats.subjects,
@@ -441,7 +452,7 @@ export async function startServer(): Promise<void> {
       }`,
       `     Compte démo     : ${config.security.allowDemoAccount ? 'activé (partagé)' : 'désactivé'}`,
       `     Catalogue       : ${catalog.stats.topics} sujets / ${catalog.stats.playable} jouables`,
-      `     URL             : ${appBaseUrl() || `http://localhost:${config.port}`}`,
+      `     URL             : ${resolveAppUrl().base || `http://localhost:${config.port}`}`,
       '',
     ];
     console.log(lines.join('\n'));
@@ -477,6 +488,26 @@ export async function startServer(): Promise<void> {
      * pas de TTL Redis, l'expiration est donc vérifiée à la lecture ET balayée
      * ici pour ne pas laisser d'empreintes orphelines s'accumuler dans Upstash.
      */
+    /*
+     * Sonde de l'URL publique : un APP_URL périmé ne produit AUCUNE erreur
+     * visible (l'e-mail part, le lien est bien formé) et l'élève tombe sur un
+     * 404 Render. On va donc vérifier sur place, sans bloquer le démarrage.
+     */
+    void probeLinkBase()
+      .then((result) => {
+        if (result.ok) {
+          console.log(`[EduMate] ✔ URL des liens vérifiée : ${result.base}`);
+        } else {
+          console.warn(
+            `[EduMate] 🔴 URL des liens INJOIGNABLE : ${result.error}\n` +
+              '           Les e-mails de réinitialisation contiendraient un lien mort.\n' +
+              '           Corrige APP_URL dans Render → Environment (voir docs/MOT-DE-PASSE-OUBLIE.md).\n',
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn(`[EduMate] Sonde d'URL ignorée : ${(error as Error).message}`);
+      });
     void sweepExpiredResetTokens()
       .then((removed) => {
         if (removed > 0) console.log(`[EduMate] ${removed} lien(s) de réinitialisation expiré(s) purgé(s).`);

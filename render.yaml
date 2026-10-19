@@ -81,9 +81,14 @@ services:
       # UPSTASH_REDIS_REST_URL   = https://xxxxxxxx.upstash.io
       # UPSTASH_REDIS_REST_TOKEN = AXxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       # APP_URL                  = https://edumateapp.onrender.com
-      #                            ⚠️ INDISPENSABLE aux e-mails : c'est la base
-      #                            du lien « mot de passe oublié ». Sans elle,
-      #                            Render fournit RENDER_EXTERNAL_URL en repli.
+      #   🔴 INDISPENSABLE aux e-mails : c'est la BASE du lien « mot de passe
+      #      oublié ». À mettre à jour à CHAQUE changement de service Render :
+      #      une valeur périmée ne produit aucune erreur, l'e-mail part avec un
+      #      lien mort (404). Filet de sécurité intégré : si APP_URL et l'URL
+      #      injectée par Render sont toutes deux en *.onrender.com et diffèrent,
+      #      c'est l'URL réelle qui est utilisée (+ avertissement dans les logs,
+      #      /api/health et /admin). Un domaine personnalisé reste prioritaire.
+      #      Vérification en 1 clic : /admin → « E-mails » → « Vérifier maintenant ».
       # ADMIN_EMAIL              = ton@email.fr   (facultatif : le 1er compte
       #                             créé devient administrateur de toute façon)
       #

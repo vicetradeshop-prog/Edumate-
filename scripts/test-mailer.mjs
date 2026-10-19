@@ -287,6 +287,87 @@ async function main() {
     await stopServer(c);
   }
 
+  /* --------- D. APP_URL périmé : l'URL Render réelle doit l'emporter --------- */
+  console.log('\n── D. APP_URL périmé (service Render déplacé)');
+  const STALE = 'https://ancien-service.onrender.com';
+  const LIVE = 'https://service-actuel.onrender.com';
+  const d = await startServer(8934, {
+    APP_URL: STALE,
+    RENDER_EXTERNAL_URL: LIVE,
+    MAIL_API_KEY: 'xkeysib-cle-factice-0000',
+    MAIL_FROM: 'EduMate <no-reply@exemple.fr>',
+  });
+  try {
+    const admin = await adminClient(d.base);
+    const status = await admin.get('/api/admin/mail-status');
+    check('🔴 la base retenue est celle injectée par Render', status.body.linkBase === LIVE, status.body.linkBase);
+    check('🔴 la provenance est signalée', status.body.linkBaseSource === 'RENDER_EXTERNAL_URL', status.body.linkBaseSource);
+    const warningD = (status.body.warnings ?? []).join(' ');
+    check('l’APP_URL périmé est explicitement dénoncé', warningD.includes(STALE) && /APP_URL/.test(warningD), warningD.slice(0, 200));
+    check('le message dit quoi faire', /Render → Environment/.test(warningD));
+
+    // LE test qui compte : le lien réellement envoyé à un élève.
+    const target = `eleve.${Date.now()}@edumate.test`;
+    await new Client(d.base).post('/api/auth/signup', { firstName: 'Sami', email: target, password: 'motdepasse123' });
+    const forgot = await new Client(d.base).post('/api/auth/forgot', { email: target }, { allowError: true });
+    const link = forgot.body?.devLink ?? '';
+    check('🔴 le lien de l’e-mail part sur la BONNE URL', link.startsWith(`${LIVE}/reinitialiser?token=`), link.slice(0, 90));
+    check('🔴 le lien ne contient plus l’ancienne URL', !link.includes(STALE), link.slice(0, 90));
+    check('le lien conserve le chemin et un jeton', /\/reinitialiser\?token=[A-Za-z0-9_-]{20,}$/.test(link), link.slice(-40));
+
+    // La sonde doit conclure que cette URL ne répond pas (domaine fictif).
+    const probe = await admin.post('/api/admin/mail-probe', {}, { allowError: true });
+    check('POST /api/admin/mail-probe → 200', probe.status === 200, `HTTP ${probe.status}`);
+    check('🔴 la sonde détecte une URL qui ne répond pas', probe.body?.ok === false, JSON.stringify(probe.body).slice(0, 160));
+    check('la sonde explique la cause', Boolean(probe.body?.error), String(probe.body?.error).slice(0, 120));
+    check('la sonde renvoie l’avertissement APP_URL', (probe.body?.warnings ?? []).some((w) => w.includes(STALE)));
+
+    const logsD = fs.readFileSync(d.logPath, 'utf8');
+    check('l’avertissement apparaît au DÉMARRAGE', /APP_URL vaut/.test(logsD));
+  } finally {
+    await stopServer(d);
+  }
+
+  /* ---- E. Cas qui doivent continuer à fonctionner (non-régression) ---- */
+  console.log('\n── E. Domaine personnalisé et URL cohérente');
+  const e = await startServer(8935, {
+    APP_URL: 'https://edumate.mon-lycee.fr',
+    RENDER_EXTERNAL_URL: 'https://service-actuel.onrender.com',
+    MAIL_API_KEY: 'xkeysib-cle-factice-0000',
+    MAIL_FROM: 'EduMate <no-reply@mon-lycee.fr>',
+  });
+  try {
+    const admin = await adminClient(e.base);
+    const status = await admin.get('/api/admin/mail-status');
+    check('🔴 un domaine personnalisé reste PRIORITAIRE sur l’URL Render', status.body.linkBase === 'https://edumate.mon-lycee.fr', status.body.linkBase);
+    check('provenance = APP_URL', status.body.linkBaseSource === 'APP_URL', status.body.linkBaseSource);
+    check('aucun avertissement d’URL périmée (cas légitime)', !(status.body.warnings ?? []).some((w) => /APP_URL vaut/.test(w)), (status.body.warnings ?? []).join(' | ').slice(0, 160));
+
+    const sameHost = await startServer(8936, {
+      APP_URL: 'https://service-actuel.onrender.com',
+      RENDER_EXTERNAL_URL: 'https://service-actuel.onrender.com/',
+      MAIL_API_KEY: 'xkeysib-cle-factice-0000',
+      MAIL_FROM: 'EduMate <no-reply@exemple.fr>',
+    });
+    try {
+      const admin2 = await adminClient(sameHost.base);
+      const status2 = await admin2.get('/api/admin/mail-status');
+      check('APP_URL identique à Render (avec « / » final) → aucune alerte', !(status2.body.warnings ?? []).some((w) => /APP_URL vaut/.test(w)));
+      check('les « / » finaux sont normalisés', status2.body.linkBase === 'https://service-actuel.onrender.com', status2.body.linkBase);
+      check('provenance = APP_URL quand les deux concordent', status2.body.linkBaseSource === 'APP_URL', status2.body.linkBaseSource);
+    } finally {
+      await stopServer(sameHost);
+    }
+
+    // health expose la base : diagnostic possible sans compte administrateur.
+    const health = await (await fetch(`${e.base}/api/health`)).json();
+    check('health.mail.linkBase exposé', health.mail?.linkBase === 'https://edumate.mon-lycee.fr', String(health.mail?.linkBase));
+    check('health.mail.linkBaseSource exposé', health.mail?.linkBaseSource === 'APP_URL', String(health.mail?.linkBaseSource));
+    check('🔒 health.mail n’expose ni clé ni mot de passe', !JSON.stringify(health.mail ?? {}).match(/xkeysib|SMTP_PASS/i));
+  } finally {
+    await stopServer(e);
+  }
+
   /* -------------------------------- Bilan -------------------------------- */
   console.log(`\n${'='.repeat(62)}`);
   console.log(`  Résultat : ${passed} contrôles réussis, ${failures.length} échec(s)`);

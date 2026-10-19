@@ -30,7 +30,7 @@
  * Render) et l'API renvoie `sent: false`. L'application ne plante jamais et ne
  * bloque jamais l'élève : la route répond 200 dans tous les cas.
  */
-import { RENDER_BLOCKED_SMTP_PORTS, config, isRenderHost } from './config.js';
+import { RENDER_BLOCKED_SMTP_PORTS, config, isRenderHost, resolveAppUrl } from './config.js';
 
 /** Fournisseurs d'envoi reconnus. */
 export type MailProviderId = 'none' | 'log' | 'resend' | 'brevo' | 'sendgrid' | 'mailgun' | 'postmark' | 'smtp';
@@ -121,6 +121,76 @@ export interface MailerDiagnosis {
   warnings: string[];
   /** Ce qui se passe CONCRÈTEMENT quand un élève demande un lien. */
   behaviour: string;
+  /** Base retenue pour les liens des e-mails, et d'où elle vient. */
+  linkBase: string;
+  linkBaseSource: string;
+  /** Joignabilité vérifiée de cette base (`null` = pas encore testé). */
+  linkBaseReachable: boolean | null;
+  linkBaseStatus: number | null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sonde de l'URL publique des liens                                  */
+/* ------------------------------------------------------------------ */
+
+export interface LinkBaseProbe {
+  base: string;
+  source: string;
+  ok: boolean | null;
+  status: number | null;
+  error: string | null;
+  checkedAt: string | null;
+}
+
+const linkBaseProbe: LinkBaseProbe = { base: '', source: '', ok: null, status: null, error: null, checkedAt: null };
+
+/**
+ * Vérifie que la base des liens répond VRAIMENT.
+ *
+ * Un `APP_URL` périmé ne produit aucune erreur visible : l'e-mail part, le lien
+ * est bien formé, l'expéditeur est accepté par le prestataire… et l'élève tombe
+ * sur un 404 Render. Le seul moyen de le détecter est d'aller voir.
+ *
+ * Appelée une fois au démarrage (non bloquant) et à la demande depuis le panneau
+ * d'administration. `GET {base}/api/health` avec un délai court : c'est la route
+ * la plus légère du serveur et elle ne renvoie jamais de redirection.
+ */
+export async function probeLinkBase(): Promise<LinkBaseProbe> {
+  const resolution = resolveAppUrl();
+  linkBaseProbe.base = resolution.base;
+  linkBaseProbe.source = resolution.source;
+  if (!resolution.base) {
+    linkBaseProbe.ok = false;
+    linkBaseProbe.status = null;
+    linkBaseProbe.error = 'Aucune URL publique : les liens seraient relatifs.';
+    linkBaseProbe.checkedAt = new Date().toISOString();
+    return { ...linkBaseProbe };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${resolution.base}/api/health`, {
+      method: 'GET',
+      signal: controller.signal,
+      redirect: 'manual',
+    });
+    linkBaseProbe.status = response.status;
+    linkBaseProbe.ok = response.status >= 200 && response.status < 400;
+    linkBaseProbe.error = linkBaseProbe.ok ? null : `HTTP ${response.status} sur ${resolution.base}/api/health`;
+  } catch (error) {
+    linkBaseProbe.ok = false;
+    linkBaseProbe.status = null;
+    linkBaseProbe.error = `${resolution.base} injoignable (${error instanceof Error ? error.message : String(error)})`;
+  } finally {
+    clearTimeout(timer);
+    linkBaseProbe.checkedAt = new Date().toISOString();
+  }
+  return { ...linkBaseProbe };
+}
+
+/** Dernier résultat de la sonde, sans relancer de requête. */
+export function linkBaseStatus(): LinkBaseProbe {
+  return { ...linkBaseProbe };
 }
 
 /**
@@ -169,6 +239,17 @@ export function diagnoseMailer(): MailerDiagnosis {
     }
   }
 
+  const resolution = resolveAppUrl();
+  if (resolution.warning) warnings.push(resolution.warning);
+  const probe = linkBaseStatus();
+  const probed = probe.base === resolution.base ? probe : null;
+  if (probed && probed.ok === false) {
+    warnings.push(
+      `L'URL des liens (${probed.base}) ne répond pas — ${probed.error ?? 'injoignable'}. ` +
+        'Les e-mails partiraient avec un lien mort : vérifie APP_URL dans Render → Environment.',
+    );
+  }
+
   const configured = hasMailer() && missing.length === 0;
   const behaviour = configured
     ? `Les liens partent par ${current} depuis ${from || '(expéditeur à préciser)'}.`
@@ -176,7 +257,18 @@ export function diagnoseMailer(): MailerDiagnosis {
       ? 'Aucun e-mail n’est envoyé et rien n’est journalisé : le parcours est inopérant.'
       : 'Aucun e-mail ne part : chaque lien demandé est écrit dans les JOURNAUX du serveur (Render → Logs).';
 
-  return { provider: current, configured, from, missing, warnings, behaviour };
+  return {
+    provider: current,
+    configured,
+    from,
+    missing,
+    warnings,
+    behaviour,
+    linkBase: resolution.base,
+    linkBaseSource: resolution.source,
+    linkBaseReachable: probed ? probed.ok : null,
+    linkBaseStatus: probed ? probed.status : null,
+  };
 }
 
 /**
@@ -189,6 +281,14 @@ export function diagnoseMailer(): MailerDiagnosis {
 export function warnMailerPitfalls(): void {
   const diagnosis = diagnoseMailer();
   for (const warning of diagnosis.warnings) console.warn(`[EduMate] ⚠️  E-mails : ${warning}`);
+  console.log(
+    `[EduMate] URL des liens e-mail : ${diagnosis.linkBase || '(aucune)'} [source : ${diagnosis.linkBaseSource}]` +
+      (diagnosis.linkBaseReachable === false
+        ? '  🔴 INJOIGNABLE — les liens des e-mails seraient morts'
+        : diagnosis.linkBaseReachable
+          ? '  ✔ joignabilité vérifiée'
+          : ''),
+  );
   if (!diagnosis.configured && diagnosis.provider !== 'none') {
     console.warn(
       diagnosis.missing.length

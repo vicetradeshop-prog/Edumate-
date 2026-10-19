@@ -23,6 +23,7 @@ Ce document couvre deux situations distinctes :
 - [5. Comment ça marche sous le capot](#5-comment-ça-fonctionne-sous-le-capot)
 - [6. Réglages disponibles](#6-réglages-disponibles)
 - [7. Dépannage](#7-dépannage)
+  - [🔴 Le lien mène vers une page « Not Found »](#-le-lien-mène-vers-une-page--not-found)
 
 ---
 
@@ -388,7 +389,7 @@ JWT.pv                   : la version au moment de l'émission
 | `PASSWORD_RESET_COOLDOWN_SECONDS` | `60` | délai minimal entre deux demandes |
 | `PASSWORD_RESET_MAX_PER_HOUR` | `5` | plafond horaire par adresse |
 | `EXPOSE_RESET_LINK` | `false` (forcé en prod) | renvoie le lien dans la réponse HTTP |
-| `APP_URL` | — | base des liens envoyés par e-mail |
+| `APP_URL` | — | base des liens envoyés par e-mail — 🔴 **à mettre à jour à chaque changement de service Render** (auto-corrigé si les deux URL sont en `*.onrender.com`) |
 | `RECOVERY_EMAIL` `RECOVERY_PASSWORD` `RECOVERY_MAKE_ADMIN` | — | dépannage d'urgence (voir §2) |
 
 ---
@@ -427,6 +428,35 @@ Expéditeur `@gmail.com` : tu ne peux pas publier de SPF/DKIM pour un domaine qu
 ### Erreur SMTP `Connection timeout`
 
 Mauvais couple port/`SMTP_SECURE` : `465` exige `true`, `587` exige `false` (STARTTLS).
+
+### 🔴 Le lien mène vers une page « Not Found »
+
+**Cause n°1, de très loin la plus fréquente : `APP_URL` est périmé.**
+
+Quand un service Render est déplacé, renommé ou recréé, son URL change (`edumate-w87j.onrender.com` → `edumateapp.onrender.com`). Mais `APP_URL` est saisie **à la main** dans l'onglet Environment : elle continue donc de pointer vers l'ancien service, qui renvoie désormais un 404.
+
+Le symptôme est particulièrement traître : **rien ne signale l'erreur**. L'e-mail part, le prestataire l'accepte, le lien est parfaitement formé, `/api/health` est au vert — et l'élève clique sur un lien mort.
+
+**Depuis cette version, EduMate s'en occupe tout seul :**
+
+| Situation | Base utilisée |
+|---|---|
+| `APP_URL` = `https://ancien.onrender.com`, service réel = `https://nouveau.onrender.com` | ✅ **`https://nouveau.onrender.com`** (celle injectée par Render) + avertissement |
+| `APP_URL` = `https://edumate.mon-lycee.fr` (domaine personnalisé) | ✅ `APP_URL` — Render ne connaît pas ton domaine, il garde la priorité |
+| `APP_URL` absent | ✅ l'URL injectée par Render |
+| `APP_URL` absent **et** pas sur Render | ⚠️ avertissement : les liens seraient relatifs |
+
+**Pourquoi ne pas simplement lire l'en-tête `Host` de la requête ?** Ce serait plus automatique, et dangereux : un attaquant peut envoyer `POST /api/auth/forgot` avec un `Host: evil.com` forgé, et le lien reçu par la victime pointerait vers son serveur — il récupérerait le jeton. C'est l'attaque classique par empoisonnement de lien de réinitialisation. `RENDER_EXTERNAL_URL` est posé par la plateforme, jamais par le client : il ne peut pas être forgé.
+
+**Vérifier en un clic** : `/admin` → carte « E-mails » → **« Vérifier maintenant »**. Le serveur appelle réellement `{base}/api/health` et affiche le verdict. La même sonde tourne au démarrage ; une URL morte y déclenche :
+
+```
+[EduMate] 🔴 URL des liens INJOIGNABLE : HTTP 404 sur https://ancien-service.onrender.com/api/health
+           Les e-mails de réinitialisation contiendraient un lien mort.
+           Corrige APP_URL dans Render → Environment
+```
+
+**Corrige quand même `APP_URL`** dans Render → Environment : l'auto-réparation est un filet de sécurité, pas une excuse pour laisser une valeur fausse.
 
 ### L'e-mail arrive mais le lien ne fonctionne pas
 
