@@ -10,6 +10,7 @@
 import { create } from 'zustand';
 import type { Preferences, PublicUser, Subject, Level } from '../../shared/types.js';
 import { ApiError, endpoints, onUnauthorized, setCsrfToken, type CatalogResponse, type QuizQuestionClient, type SessionResponse } from '../lib/api.js';
+import { setSfxEnabled } from '../lib/sfx.js';
 
 /* ------------------------------------------------------------------ */
 /*  Auth                                                               */
@@ -64,6 +65,14 @@ function applyPreferencesToDom(user: PublicUser | null): void {
   const resolved = requested === 'auto' ? (prefersDark ? 'sombre' : 'clair') : requested;
   root.dataset.theme = resolved;
   root.dataset.animations = prefs?.animations === false ? 'off' : 'on';
+  /*
+   * Les retours sonores d'interface (survol des graphiques de progression,
+   * clics) suivent la même préférence. Synchronisé ici, c'est-à-dire à chaque
+   * chargement de session et à chaque changement de préférence : un élève qui
+   * coupe « Sons » dans les paramètres n'a plus aucun son, immédiatement, sans
+   * rechargement de page.
+   */
+  setSfxEnabled(prefs?.sounds !== false);
   root.dataset.density = prefs?.density ?? 'confort';
   if (prefs?.accent) root.style.setProperty('--ed-primary', prefs.accent);
 }

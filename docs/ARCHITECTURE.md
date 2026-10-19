@@ -55,6 +55,8 @@ Document destiné à quiconque reprend le projet : où modifier quoi, et pourquo
 | Ajouter un **outil** | `src/client/pages/tools/` + entrée dans `ToolsPage.tsx` |
 | Modifier le **design** | `src/client/styles/{base,components,layout}.css` |
 | Ajouter un **composant réutilisable** | `src/client/components/ui/` |
+| Ajouter un **graphique** | `src/client/components/progress/` (SVG maison, son via `lib/sfx.ts`) |
+| Ajouter un **son d'interface** | `src/client/lib/sfx.ts` (échelle pentatonique, anti-mitraille, préférence « Sons ») |
 | Ajouter un **endpoint côté client** | `src/client/lib/api.ts` (objet `endpoints`) |
 | Ajouter un **état global** | `src/client/lib/store.ts` (Zustand) |
 

@@ -116,6 +116,46 @@ class Client {
   }
 }
 
+/**
+ * Date « jour » dans le MÊME fuseau que le produit.
+ *
+ * 🔴 `lib/planning.ts` calcule « aujourd'hui » avec `timeZone: 'Europe/Paris'`
+ * (choix produit : un élève français voit son planning en heure de Paris quelle
+ * que soit la machine qui sert). Ce test construisait ses dates en UTC : entre
+ * minuit et 2 h du matin heure de Paris (22 h → minuit UTC), les deux horloges
+ * ne désignaient pas le même jour et le planning comptait 7 jours au lieu de 8 —
+ * un échec silencieux deux heures par jour, selon l'heure du run.
+ *
+ * En calant le test sur l'horloge du produit, la suite devient indépendante du
+ * fuseau de la machine ET de l'heure du run.
+ */
+function parisDay(offsetDays = 0) {
+  /*
+   * 🔴 N'additionne JAMAIS `offsetDays * 86 400 000` ms à `Date.now()` puis ne
+   * formate en Europe/Paris : près de minuit (et lors du passage heure d'été /
+   * heure d'hiver) on obtient « la date parisienne de (maintenant + N jours) »,
+   * qui n'est PAS « la date parisienne d'aujourd'hui + N jours ». Entre 22 h et
+   * minuit UTC, l'écart atteint un jour entier — exactement le décalage qui
+   * faisait compter 7 jours au planning au lieu de 8.
+   *
+   * On lit donc AUJOURD'HUI en heure de Paris, puis on décale en arithmétique de
+   * dates pures (Date.UTC), insensible aux fuseaux et à l'heure d'été.
+   */
+  let today;
+  try {
+    today = new Intl.DateTimeFormat('fr-CA', {
+      timeZone: 'Europe/Paris',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    today = new Date().toISOString().slice(0, 10);
+  }
+  const [year, month, day] = today.split('-').map(Number);
+  return new Date(Date.UTC(year, (month ?? 1) - 1, (day ?? 1) + offsetDays)).toISOString().slice(0, 10);
+}
+
 const qs = (params) =>
   Object.entries(params)
     .filter(([, value]) => value !== undefined && value !== null && value !== '')
@@ -349,7 +389,7 @@ async function runTests() {
   check('Recommandations personnalisées', recos.status === 200 && Array.isArray(recos.body.fresh) && recos.body.fresh.length > 0);
 
   console.log('\n── Organisation (calendrier & tâches)');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = parisDay(0);
   const created = await client.post('/api/organize/events', { title: 'DM de maths', date: today, kind: 'devoir', subjectId: 'mathematiques', time: '18:30' });
   check('Création d’un événement', created.status === 201 && created.body.events.length === 1);
   const eventId = created.body.event.id;
@@ -402,7 +442,7 @@ async function runTests() {
   check('Fiches : score invalide → 400', badScore.status === 400);
 
   /* ------------------- Planning de révision automatique ------------------ */
-  const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const in7 = parisDay(7);
   const examCreate = await client.post('/api/planning/exams', {
     subjectId: 'mathematiques',
     title: 'Contrôle de dérivation',
@@ -441,7 +481,7 @@ async function runTests() {
   // doit donc être cochée dans le planning de ce contrôle.
   const themeId = searchDerivation.body.items?.[0]?.themeId ?? themes.body.themes?.[0]?.id;
   check('Planning : thèmes disponibles', Boolean(themeId));
-  const in5 = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+  const in5 = parisDay(5);
   const plCreated = await client.post('/api/planning/exams', {
     subjectId: 'mathematiques',
     themeId,
@@ -478,7 +518,7 @@ async function runTests() {
   );
   // Séance future verrouillée côté données : date > aujourd’hui
   const future = after.body.plan.days.slice(1).flatMap((d) => d.sessions).find((s) => s.status === 'prevue');
-  check('Planning : séances futures datées', Boolean(future) && future.date > new Date().toISOString().slice(0, 10));
+  check('Planning : séances futures datées', Boolean(future) && future.date > parisDay(0));
   // Report → l'événement calendrier suit
   const postponed2 = await client.post(`/api/planning/exams/${exam2}/sessions/${encodeURIComponent(future.id)}`, { status: 'postponed' });
   const plEventsAfter = await client.get('/api/organize/events');
@@ -499,7 +539,7 @@ async function runTests() {
   const doneTarget = gen2.body.plan.days[0].sessions[0];
   const doneMark = await client.post(`/api/planning/exams/${exam2}/sessions/${encodeURIComponent(doneTarget.id)}`, { status: 'done' });
   check('Planning : séance marquée terminée', doneMark.body.plan.days.flatMap((d) => d.sessions).some((s) => s.id === doneTarget.id && s.status === 'done'));
-  const newDate = new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10);
+  const newDate = parisDay(8);
   const moved = await client.patch(`/api/planning/exams/${exam2}`, { date: newDate });
   check('Planning : changement de date journalisé', (moved.body.exam.journal ?? []).some((e) => e.message.includes('Contrôle modifié')));
   const calAfter = await client.get('/api/organize/events');

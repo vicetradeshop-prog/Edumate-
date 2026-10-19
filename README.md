@@ -41,6 +41,11 @@ Aide aux devoirs assistée · **1 316 sujets de quiz** · progression détaillé
 19. [Feuille de route](#-feuille-de-route)
 20. [Licence](#-licence)
 
+> 📈 **v3.3 — Progression refondue** : graphiques SVG maison **sonorisés**
+> (échelle pentatonique au survol), bandeau héros gamifié (niveau / XP, jauges,
+> série), navigation clavier et repli « animations réduites ». **Recharts retiré** :
+> le chunk passe de 413 ko à 31 ko.
+>
 > 🔑 **v3.2 — Mot de passe oublié** : réinitialisation par e-mail (Brevo, Resend,
 > SendGrid, Mailgun, Postmark, SMTP), lien à usage unique, révocation de toutes
 > les sessions, récupération d'urgence d'un compte administrateur depuis Render.
@@ -92,8 +97,17 @@ Après chaque quiz, le bouton **« 📖 Réviser ce quiz »** ouvre la **révisi
 
 Les leçons couvrent **les 1 316 sujets** : 134 fiches pédagogiques (une par famille de questions) + exemples et exercices issus des générateurs du catalogue, déterministes par graine. Sans compte ou sans historique, la révision bascule en **session d'entraînement** : la page n'est jamais vide.
 
-### 📈 Progression
-Score, taux de réussite, séries de jours, temps de travail, réussite par matière (barres + camembert), activité quotidienne sur 7/14/30 jours, sujets **maîtrisés** (≥ 2 tentatives et ≥ 80 %) et sujets **à revoir**, historique des 50 dernières tentatives, maîtrise détaillée par sujet.
+### 📈 Progression (refonte v3.3 — graphiques maison, sonorisés)
+Score, taux de réussite, séries de jours, temps de travail, activité quotidienne sur 7/14/30 jours, sujets **maîtrisés** (≥ 2 tentatives et ≥ 80 %) et sujets **à revoir**, historique des 50 dernières tentatives, maîtrise détaillée par sujet.
+
+**Depuis la v3.3, la page est entièrement redessinée** autour de graphiques SVG maison (Recharts, 413 ko, a été retiré du projet : le chunk passe de 413 ko à **31 ko**) :
+
+- **Bandeau héros** : trois jauges annulaires animées (réussite, objectif du jour, record), **niveau / XP** calculé sur les statistiques réelles (barre à reflet, titres qui évoluent : Curieux → Apprenti → … → Légende), flamme de série vivante.
+- **Graphique d'activité** : courbe de réussite (cubique monotone, aucune overshoot) sur barres de volume, dégradé + halo, tracé progressif à l'ouverture.
+- 🔊 **Sonification** : survoler le graphique, l'anneau ou les barres joue une note dont la hauteur suit le taux de réussite, sur une **échelle pentatonique** — aucune succession de notes ne peut dissoner, donc balayer ses données produit une petite mélodie au lieu d'un crépitement. Anti-mitraille intégré, coupé par la préférence « Sons » du compte.
+- ⌨️ **Accessible** : navigation du graphique aux flèches / Début / Fin / Échap avec annonce `aria-live`, tableau équivalent masqué pour les lecteurs d'écran, info-bulle jamais hors écran.
+- **Anneau de répartition** dont le centre sert de zone de lecture, légende interactive synchronisée (souris **et** clavier) ; barres de réussite par matière avec repères à 40 % et 70 %.
+- Repli complet en `prefers-reduced-motion` et avec le réglage « Animations » : tout reste lisible, seul le mouvement disparaît.
 
 ### 🧰 Outils
 | Outil | Fonctionnalités |
@@ -188,13 +202,17 @@ EDUMATE (1 dépôt, 1 service Render)
 │   │   │   │                    AuthAside (colonne commune des écrans de connexion)
 │   │   │   ├── ui/              Button, Card, Field, Modal, Toasts, Badge, Feedback,
 │   │   │   │                    PasswordStrength, AnimatedBadge, Confetti
+│   │   │   ├── progress/        ActivityChart, SubjectDonut, SubjectBars,
+│   │   │   │                    RadialGauge (graphiques SVG maison, sonorisés)
 │   │   │   ├── quiz/            TopicCard
 │   │   │   └── tools/           ToolShell (mise en page des outils)
 │   │   ├── pages/               1 page = 1 écran (dashboard, quiz, assistant…)
 │   │   │   │                    ForgotPasswordPage, ResetPasswordPage
 │   │   │   └── tools/           horloge, minuteur, chrono, tableau, calendrier…
 │   │   ├── lib/                 api.ts, store.ts, richtext.ts, music.ts,
-│   │   │                        format.ts, hooks.ts, data.ts
+│   │   │                        format.ts, hooks.ts, data.ts,
+│   │   │                        sfx.ts (sons WebAudio pentatoniques),
+│   │   │                        xp.ts (niveau / XP dérivés des stats)
 │   │   ├── routes/guards.tsx    RequireAuth / GuestOnly / RequireAdmin
 │   │   └── styles/              base.css, components.css, layout.css
 │   │
@@ -783,7 +801,7 @@ L'ajout/modification/suppression de quiz par l'interface d'administration est **
 
 ```bash
 npm test               # unitaires + contenu + API (suite principale)
-npm run test:unit      # 100 tests unitaires (rendu riche, formatage, sécurité, jetons, moteur, conjugaison…)
+npm run test:unit      # 109 tests unitaires (rendu riche, formatage, sécurité, jetons, XP, échelle pentatonique, courbe monotone…)
 npm run test:content   # contrôle des 1 316 sujets et de leurs 6 580 questions générées
 npm run test:api       # 189 contrôles de bout en bout sur l'API (démarre un serveur réel)
 npm run test:api:built # les mêmes 189 contrôles sur le build de production

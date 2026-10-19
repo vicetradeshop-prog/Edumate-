@@ -154,15 +154,36 @@ for (const file of initial) if (fs.existsSync(path.join(assetsDir, file))) initi
 console.log(`   ℹ️  Chargement initial : ${initial.size} fichier(s), ${(initialGzip / 1024).toFixed(0)} Kio gzip`);
 check('Chargement initial < 400 Kio gzip', initialGzip < 400 * 1024, `${(initialGzip / 1024).toFixed(0)} Kio`);
 
-const heavy = jsFiles.find((file) => {
+/*
+ * Graphiques de la page Progression.
+ *
+ * Recharts a été REMPLACÉ par des composants SVG maison (v3.3) : il pesait à
+ * lui seul 413 ko non compressés dans le chunk ProgressPage, imposait son rendu
+ * (info-bulles génériques, animations non pilotables) et n'exposait pas les
+ * événements par colonne — donc ni sonification ni navigation clavier.
+ * Les deux contrôles ci-dessous verrouillent ce gain : la bibliothèque ne doit
+ * pas revenir, et le chunk doit rester léger.
+ */
+const bloated = jsFiles.filter((file) => {
   const code = fs.readFileSync(path.join(assetsDir, file), 'utf8');
   return code.includes('recharts') || code.includes('Recharts');
 });
-check(
-  'Recharts en chargement paresseux (hors écran d’accueil)',
-  !heavy || !initial.has(heavy),
-  heavy ? `${heavy} chargé au démarrage` : '',
-);
+check('Recharts absent du build (graphiques SVG maison)', bloated.length === 0, bloated.join(', '));
+
+const progressChunk = jsFiles.find((file) => /^ProgressPage-/.test(file));
+if (progressChunk) {
+  const raw = fs.statSync(path.join(assetsDir, progressChunk)).size;
+  const gz = gzip(progressChunk);
+  check(
+    'Chunk Progression < 90 ko brut (sans Recharts : 413 ko avant)',
+    raw < 90 * 1024,
+    `${(raw / 1024).toFixed(1)} ko brut / ${(gz / 1024).toFixed(1)} ko gzip`,
+  );
+  console.log(`   ℹ️  Chunk Progression : ${(raw / 1024).toFixed(1)} ko brut, ${(gz / 1024).toFixed(1)} ko gzip`);
+} else {
+  check('Chunk Progression présent (chargement paresseux)', false, 'introuvable');
+}
+check('Progression jamais chargée au démarrage', !initial.has(progressChunk ?? ''), progressChunk ?? '');
 
 const totalRaw = jsFiles.reduce((sum, file) => sum + fs.statSync(path.join(assetsDir, file)).size, 0);
 console.log(`   ℹ️  ${jsFiles.length} chunks JS, ${(totalRaw / 1024 / 1024).toFixed(2)} Mio non compressé`);

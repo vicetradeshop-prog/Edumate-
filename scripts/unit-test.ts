@@ -22,6 +22,9 @@ import {
 } from '../src/shared/password.js';
 import { isValidEmailValue, maskEmailValue } from '../src/shared/email.js';
 import { generateResetToken, hashResetToken, safeEqualHex } from '../src/server/lib/passwordReset.js';
+import { computeXp, formatXp, levelFromXp, levelInfoFromXp, titleForLevel, xpForLevel, XP_WEIGHTS } from '../src/client/lib/xp.js';
+import { noteIndexFor, PENTATONIC_HZ } from '../src/client/lib/sfx.js';
+import { monotonePath, rateColor } from '../src/client/components/progress/ActivityChart.js';
 import { buildMailTemplate, passwordResetMail } from '../src/server/lib/mailer.js';
 import { passwordResetUrl } from '../src/server/lib/config.js';
 import { requireEmail, requirePassword } from '../src/server/lib/validation.js';
@@ -634,6 +637,129 @@ test('lien de réinitialisation : URL absolue avec le jeton encodé', () => {
   assert.ok(link.startsWith('http'), 'un lien relatif serait inutilisable dans un e-mail');
   assert.ok(link.endsWith('abc-DEF_123'));
   assert.ok(passwordResetUrl('a b/c').includes('a%20b%2Fc'), 'jeton encodé pour l’URL');
+});
+
+/* ------------------------------------------------------------------ */
+/*  Niveau / XP (page Progression)                                     */
+/* ------------------------------------------------------------------ */
+
+test('xp : pondérations appliquées et bornées', () => {
+  const xp = computeXp({ correct: 10, attempts: 2, streakDays: 3, totalDurationSec: 1800, lessonsValidated: 1 });
+  assert.equal(
+    xp,
+    10 * XP_WEIGHTS.correctAnswer +
+      2 * XP_WEIGHTS.quizFinished +
+      3 * XP_WEIGHTS.streakDay +
+      1 * XP_WEIGHTS.lessonValidated +
+      30 * XP_WEIGHTS.minute,
+  );
+  // Valeurs aberrantes (négatives, NaN) : jamais un XP négatif ni NaN.
+  assert.equal(computeXp({ correct: -5, attempts: NaN, streakDays: -1, totalDurationSec: -999 }), 0);
+  assert.ok(Number.isFinite(computeXp({ correct: 0, attempts: 0, streakDays: 0, totalDurationSec: 0 })));
+});
+
+test('xp : niveaux strictement croissants, sans plafond', () => {
+  assert.equal(levelFromXp(0), 1);
+  assert.equal(levelFromXp(xpForLevel(2) - 1), 1);
+  assert.equal(levelFromXp(xpForLevel(2)), 2);
+  assert.equal(levelFromXp(xpForLevel(7) + 10), 7);
+  // Croissance : plus d'XP = niveau au moins égal.
+  for (const sample of [0, 250, 1000, 4000, 25000, 400000]) {
+    assert.ok(levelFromXp(sample + 1) >= levelFromXp(sample));
+  }
+  // Les premiers niveaux arrivent vite (récompense immédiate), les suivants
+  // demandent de plus en plus : l'écart entre paliers doit croître.
+  assert.ok(xpForLevel(3) - xpForLevel(2) < xpForLevel(4) - xpForLevel(3));
+  assert.ok(xpForLevel(9) - xpForLevel(8) < xpForLevel(10) - xpForLevel(9));
+  assert.ok(Number.isFinite(levelFromXp(1e12)), 'pas de plafond : un niveau existe toujours');
+});
+
+test('xp : progression dans le niveau cohérente', () => {
+  const info = levelInfoFromXp(xpForLevel(5) + 10);
+  assert.equal(info.level, 5);
+  assert.equal(info.floor, xpForLevel(5));
+  assert.equal(info.next, xpForLevel(6));
+  assert.ok(info.progress > 0 && info.progress < 1, String(info.progress));
+  assert.equal(info.remaining, info.next - info.xp);
+  // Aux bornes : 0 % au tout début du niveau, ~100 % juste avant le suivant.
+  assert.equal(levelInfoFromXp(xpForLevel(4)).progress, 0);
+  assert.ok(levelInfoFromXp(xpForLevel(5) - 1).progress > 0.9);
+  // Entrées hostiles : jamais hors de [0, 1].
+  for (const bad of [-10, NaN, Infinity, undefined as unknown as number]) {
+    const guarded = levelInfoFromXp(bad);
+    assert.ok(guarded.progress >= 0 && guarded.progress <= 1);
+    assert.equal(guarded.level, 1);
+  }
+});
+
+test('xp : titres par palier et formatage français', () => {
+  assert.equal(titleForLevel(1), 'Curieux');
+  assert.equal(titleForLevel(4), 'Apprenti');
+  assert.equal(titleForLevel(30), 'Maître');
+  assert.equal(titleForLevel(500), 'Légende');
+  assert.equal(formatXp(12480), '12\u202f480');
+  assert.equal(formatXp(0), '0');
+  assert.equal(formatXp(-5), '0');
+  assert.equal(formatXp(NaN), '0');
+});
+
+/* ------------------------------------------------------------------ */
+/*  Sonification : échelle pentatonique                                */
+/* ------------------------------------------------------------------ */
+
+test('sfx : l’échelle est pentatonique (aucune dissonance possible)', () => {
+  assert.equal(PENTATONIC_HZ.length, 10);
+  // Fréquences strictement croissantes et toutes audibles (200 → 2000 Hz).
+  for (let i = 1; i < PENTATONIC_HZ.length; i += 1) {
+    assert.ok(PENTATONIC_HZ[i] > PENTATONIC_HZ[i - 1]);
+  }
+  assert.ok(PENTATONIC_HZ[0] > 200 && PENTATONIC_HZ[PENTATONIC_HZ.length - 1] < 2000);
+});
+
+test('sfx : valeur normalisée → index borné', () => {
+  assert.equal(noteIndexFor(0), 0);
+  assert.equal(noteIndexFor(1), PENTATONIC_HZ.length - 1);
+  assert.equal(noteIndexFor(0.5), Math.round(0.5 * (PENTATONIC_HZ.length - 1)));
+  // Entrées hostiles : jamais hors de l'échelle.
+  for (const bad of [-3, 4, NaN, Infinity, -Infinity]) {
+    const index = noteIndexFor(bad);
+    assert.ok(index >= 0 && index <= PENTATONIC_HZ.length - 1, `${bad} → ${index}`);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  Courbe monotone : aucune overshoot                                 */
+/* ------------------------------------------------------------------ */
+
+test('courbe : cas limites (0, 1, 2 points)', () => {
+  assert.equal(monotonePath([]), '');
+  assert.equal(monotonePath([{ x: 5, y: 5 }]), 'M 5 5');
+  assert.equal(monotonePath([{ x: 0, y: 0 }, { x: 10, y: 20 }]), 'M 0 0 L 10 20');
+});
+
+test('courbe : extrémités exactes et tangentes horizontales aux extrema', () => {
+  const pts = [
+    { x: 0, y: 60 },
+    { x: 40, y: 10 },
+    { x: 80, y: 50 },
+    { x: 120, y: 20 },
+  ];
+  const path = monotonePath(pts);
+  assert.ok(path.startsWith('M 0 60'), path.slice(0, 16));
+  assert.ok(path.endsWith('120 20'), path.slice(-12));
+  assert.equal((path.match(/ C /g) ?? []).length, pts.length - 1, 'un segment cubique par intervalle');
+  // Un extremum local (y=10, le minimum) doit avoir une tangente horizontale :
+  // dans le segment qui y arrive, le second point de contrôle partage son y.
+  assert.ok(/ C [\d.-]+ [\d.-]+, [\d.-]+ 10, 40 10/.test(path), 'tangente horizontale au minimum local');
+});
+
+test('couleurs de réussite : seuils cohérents avec le reste de l’app', () => {
+  assert.equal(rateColor(0.9, true), '#16a34a');
+  assert.equal(rateColor(0.7, true), '#16a34a');
+  assert.equal(rateColor(0.69, true), '#f59e0b');
+  assert.equal(rateColor(0.4, true), '#f59e0b');
+  assert.equal(rateColor(0.39, true), '#e11d48');
+  assert.notEqual(rateColor(0.5, false), rateColor(0.5, true), 'jour sans activité : couleur neutre');
 });
 
 /* ------------------------------------------------------------------ */

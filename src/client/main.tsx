@@ -24,6 +24,7 @@ import './styles/base.css';
 import './styles/components.css';
 import './styles/layout.css';
 import './styles/lessons.css';
+import './styles/progress.css';
 /* Identité « Liquid Glass » v3.0 — chargée EN DERNIER : elle habille les
    composants existants (cartes, boutons, sidebar…) sans toucher à base.css. */
 import './styles/glass.css';

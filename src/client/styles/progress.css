@@ -1,0 +1,869 @@
+/* ==========================================================================
+   EduMate — Page « Ma progression » (v3.3)
+   ==========================================================================
+   Graphiques SVG maison, bandeau héros gamifié et retours sonores.
+   Tout est en tokens du thème (--ed-*, --glass-*) : la page suit donc
+   automatiquement le thème clair/sombre et la couleur d'accent du compte.
+
+   Trois règles respectées partout dans ce fichier :
+     1. aucun mouvement n'est décoratif au point de gêner — chaque animation a
+        son équivalent statique sous `prefers-reduced-motion` / `data-animations`
+        (bloc final) ;
+     2. chaque élément interactif a un `:focus-visible` visible (navigation
+        clavier des graphiques) ;
+     3. `min-width: 0` sur toutes les grilles/flex qui contiennent du texte long,
+        sinon un nom de matière non cassable fait déborder la carte.
+   ========================================================================== */
+
+/* ------------------------------ Bandeau héros ---------------------------- */
+
+.progress-page {
+  min-width: 0;
+}
+
+/*
+ * 🔴 Anti-débordement : `.ed-stack` est un flex en colonne, et un élément flex
+ * a par défaut `min-width: auto` — il refuse donc de descendre sous la largeur
+ * minimale de son CONTENU. Le tableau de l'historique (6 colonnes) imposait
+ * ~513 px et élargissait toute la colonne : sur mobile 390 px, la page
+ * débordait horizontalement.
+ *
+ * `min-width: 0` sur chaque enfant rend la contrainte au conteneur, et le
+ * tableau déborde alors dans SON propre scroll interne (`.ptable-scroll`),
+ * comme prévu. Sans cette règle, `overflow-x: auto` ne suffit pas : un
+ * conteneur défilant n'empêche pas son ancêtre flex de grossir.
+ */
+.progress-page > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.phero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(18px, 2.4vw, 34px);
+  align-items: center;
+  padding: clamp(18px, 2.2vw, 26px);
+  border-radius: var(--ed-radius-lg);
+  border: 1px solid var(--ed-border);
+  background:
+    radial-gradient(120% 160% at 8% 0%, color-mix(in srgb, var(--ed-primary) 16%, transparent) 0%, transparent 55%),
+    var(--glass-bg, var(--ed-surface));
+  box-shadow: var(--glass-shadow, var(--ed-shadow-md));
+  backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 1.5));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 1.5));
+  position: relative;
+  overflow: hidden;
+}
+
+.phero__gauges {
+  display: flex;
+  gap: clamp(10px, 1.6vw, 26px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ------------------------------- Jauges ---------------------------------- */
+
+.gauge {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  text-align: center;
+  min-width: 0;
+}
+.gauge__figure {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+/* Halo respirant derrière l'anneau : c'est lui qui donne l'impression d'un
+   compteur « vivant » plutôt que d'une simple image. */
+.gauge__halo {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  filter: blur(20px);
+  pointer-events: none;
+  z-index: 0;
+}
+.gauge__figure svg {
+  position: relative;
+  z-index: 1;
+}
+.gauge__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1px;
+  z-index: 2;
+  pointer-events: none;
+}
+.gauge__emoji {
+  font-size: 1.05rem;
+  line-height: 1;
+  opacity: 0.92;
+}
+.gauge__value {
+  font-family: var(--ed-font-display, inherit);
+  font-size: clamp(1.15rem, 1rem + 0.7vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ed-text);
+}
+.gauge__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ed-text-soft);
+}
+.gauge__hint {
+  font-size: 0.7rem;
+  color: var(--ed-text-mute);
+  max-width: 20ch;
+  line-height: 1.4;
+}
+
+/* ------------------------------ Niveau / XP ------------------------------ */
+
+.phero__level {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.phero__level-head {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+.phero__level-badge {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  font-family: var(--ed-font-display, inherit);
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(145deg, var(--ed-primary), var(--accent-magenta, #d946ef));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--ed-primary) 42%, transparent);
+  position: relative;
+}
+/* Liseré lumineux sur le badge de niveau. */
+.phero__level-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
+.phero__level-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--ed-font-display, inherit);
+  font-size: 1.22rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ed-text);
+}
+.phero__level-xp {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ed-text-mute);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barre d'XP */
+.phero__xp {
+  position: relative;
+  height: 13px;
+  border-radius: var(--ed-radius-pill);
+  background: color-mix(in srgb, var(--ed-text-mute) 18%, transparent);
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+.phero__xp-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ed-primary), var(--accent-magenta, #d946ef) 55%, var(--accent-blue, #60a5fa));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--ed-primary) 55%, transparent);
+  overflow: hidden;
+}
+/* Reflet qui balaie la barre en continu : l'œil est attiré sans que ce soit
+   clignotant (cycle long, faible contraste). */
+.phero__xp-shine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: phero-shine 2.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes phero-shine {
+  0% { transform: translateX(-130%); }
+  60%, 100% { transform: translateX(330%); }
+}
+
+/* Série en cours */
+.phero__streak {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 11px 15px;
+  border-radius: var(--ed-radius);
+  background: var(--ed-surface-2);
+  border: 1px solid var(--ed-border);
+}
+.phero__flame {
+  font-size: 1.7rem;
+  line-height: 1;
+  filter: grayscale(1) opacity(0.45);
+  transition: filter 0.3s ease;
+}
+/* Flamme « vivante » uniquement si la série est en cours : le gris signale
+   immédiatement que la série est cassée, sans avoir à lire le chiffre. */
+.phero__flame.is-alive {
+  filter: none;
+  animation: phero-flicker 1.5s ease-in-out infinite;
+}
+@keyframes phero-flicker {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  35% { transform: scale(1.13) rotate(2.5deg); }
+  65% { transform: scale(0.95) rotate(-1.5deg); }
+}
+.phero__streak strong {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--ed-text);
+  font-variant-numeric: tabular-nums;
+}
+.phero__streak em {
+  display: block;
+  font-style: normal;
+  font-size: 0.76rem;
+  color: var(--ed-text-mute);
+}
+.phero__lessons {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--ed-text-soft);
+  padding: 5px 11px;
+  border-radius: var(--ed-radius-pill);
+  background: color-mix(in srgb, var(--ed-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ed-primary) 24%, transparent);
+}
+
+/* --------------------------- Indicateurs (cartes) ------------------------ */
+
+.stat--interactive {
+  border-radius: var(--ed-radius-sm);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  cursor: default;
+  outline: none;
+}
+.stat--interactive:hover,
+.stat--interactive:focus-visible {
+  transform: translateY(-3px);
+}
+.stat--interactive:focus-visible {
+  box-shadow: var(--ed-ring);
+}
+.stat--interactive:hover .stat__icon {
+  transform: scale(1.09) rotate(-4deg);
+}
+.stat__icon {
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ==========================================================================
+   Graphique d'activité
+   ========================================================================== */
+
+.pchart {
+  position: relative;
+  min-width: 0;
+  margin-top: 10px;
+}
+.pchart__surface {
+  position: relative;
+  border-radius: var(--ed-radius);
+  outline: none;
+  /* Le focus doit être visible : c'est le point d'entrée de la navigation
+     clavier dans le graphique. */
+  transition: box-shadow 0.2s ease;
+}
+.pchart__surface:focus-visible {
+  box-shadow: var(--ed-ring);
+}
+.pchart__svg {
+  display: block;
+  width: 100%;
+  /*
+   * 🔴 `overflow` reste à sa valeur SVG par défaut (`hidden`).
+   *
+   * En `visible`, le halo pulsant du point actif et le flou du filtre
+   * « glow » de la courbe débordent du cadre du SVG — et ce débordement
+   * remonte dans la zone de scroll de la page : 8 px de scrollWidth en trop
+   * sur mobile, donc une barre de défilement horizontale parasite.
+   * Les marges internes du tracé (PADDING) sont dimensionnées pour que ce
+   * cadrage ne rogne rien de visible.
+   */
+}
+.pchart__tick {
+  font-size: 10.5px;
+  fill: var(--ed-text-mute);
+  font-variant-numeric: tabular-nums;
+  transition: fill 0.18s ease, font-weight 0.18s ease;
+}
+.pchart__tick--active {
+  fill: var(--ed-primary);
+  font-weight: 800;
+}
+.pchart__bar {
+  transition: filter 0.2s ease;
+}
+
+/* Info-bulle « verre » */
+.pchart__tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 16px));
+  min-width: 152px;
+  padding: 9px 12px;
+  border-radius: var(--ed-radius-sm);
+  background: var(--glass-bg-strong, var(--ed-surface));
+  border: 1px solid var(--glass-border, var(--ed-border));
+  box-shadow: var(--ed-shadow-lg);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  display: grid;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 4;
+}
+/* Flèche sous l'info-bulle. */
+.pchart__tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%) rotate(45deg);
+  background: inherit;
+  border-right: 1px solid var(--glass-border, var(--ed-border));
+  border-bottom: 1px solid var(--glass-border, var(--ed-border));
+}
+.pchart__tooltip-date {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  color: var(--ed-text-mute);
+  letter-spacing: 0.02em;
+}
+.pchart__tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  color: var(--ed-text-soft);
+}
+.pchart__tooltip-row strong {
+  margin-left: auto;
+  color: var(--ed-text);
+  font-variant-numeric: tabular-nums;
+}
+.pchart__tooltip-row em {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+.pchart__tooltip-dot {
+  background: var(--ed-primary);
+}
+
+/* Légende + indice d'interaction */
+.pchart__legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 0.76rem;
+  color: var(--ed-text-mute);
+}
+.pchart__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pchart__swatch {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.pchart__swatch--line {
+  background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+}
+.pchart__swatch--bar {
+  height: 10px;
+  width: 7px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ed-success) 55%, transparent);
+}
+.pchart__hint {
+  margin-left: auto;
+  opacity: 0.85;
+}
+
+/* Annonce lecteur d'écran + tableau équivalent : visibles uniquement par les
+   technologies d'assistance. */
+.pchart__announce,
+.pchart__sr {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  /*
+   * `max-width`/`max-height` ne sont pas décoratifs : sur une boîte dont la
+   * largeur est calculée automatiquement (tableau, flex), `width: 1px` n'est
+   * qu'une valeur PRÉFÉRÉE et le min-content l'emporte. Le plafond force le
+   * résultat à 1 px quelle que soit la nature de l'élément — c'est ce qui
+   * manquait au tableau équivalent du graphique (364 px au lieu de 1 px, et
+   * 8 px de débordement horizontal sur mobile).
+   */
+  max-width: 1px;
+  max-height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Anneau de répartition par matière
+   ========================================================================== */
+
+.donut {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  min-width: 0;
+}
+.donut__figure {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.donut__segment {
+  transition: stroke-width 0.26s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
+  cursor: pointer;
+}
+.donut__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  pointer-events: none;
+  padding: 0 18%;
+}
+.donut__readout {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.donut__emoji {
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+.donut__name {
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: var(--ed-text);
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+.donut__value {
+  font-family: var(--ed-font-display, inherit);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ed-text);
+}
+.donut__meta {
+  font-size: 0.68rem;
+  color: var(--ed-text-mute);
+  line-height: 1.35;
+}
+.donut__hint {
+  font-size: 0.66rem;
+  color: var(--ed-text-mute);
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* Légende : pastilles cliquables, synchronisées avec l'anneau. */
+.donut__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+}
+.donut__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--ed-radius-pill);
+  border: 1px solid var(--ed-border);
+  background: var(--ed-surface-2);
+  color: var(--ed-text-soft);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s ease, background 0.18s ease;
+}
+.donut__chip i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.donut__chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 15ch;
+}
+.donut__chip-value {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.donut__chip:hover,
+.donut__chip.is-active {
+  transform: translateY(-2px);
+  border-color: var(--ed-border-strong);
+  background: var(--ed-surface);
+  color: var(--ed-text);
+}
+.donut__chip:focus-visible {
+  outline: none;
+  box-shadow: var(--ed-ring);
+}
+
+/* ==========================================================================
+   Barres de réussite par matière
+   ========================================================================== */
+
+.sbar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+}
+.sbar {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 7px;
+  margin: -5px -7px;
+  border-radius: var(--ed-radius-sm);
+  outline: none;
+  transition: background 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sbar:hover,
+.sbar:focus-visible {
+  background: var(--ed-surface-2);
+  transform: translateX(3px);
+}
+.sbar:focus-visible {
+  box-shadow: var(--ed-ring);
+}
+.sbar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.sbar__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ed-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sbar__figures {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  flex: none;
+}
+.sbar__figures strong {
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+.sbar__figures em {
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--ed-text-mute);
+  font-variant-numeric: tabular-nums;
+}
+.sbar__track {
+  position: relative;
+  display: block;
+  height: 9px;
+  border-radius: var(--ed-radius-pill);
+  background: color-mix(in srgb, var(--ed-text-mute) 16%, transparent);
+  overflow: hidden;
+}
+.sbar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+/* Reflet au survol uniquement : évite une page entière qui scintille. */
+.sbar__shine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transform: translateX(-140%);
+}
+.sbar:hover .sbar__shine,
+.sbar:focus-visible .sbar__shine {
+  animation: sbar-shine 1.05s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes sbar-shine {
+  from { transform: translateX(-140%); }
+  to { transform: translateX(320%); }
+}
+/* Repères de seuil (40 % « à retravailler », 70 % « maîtrisé »). */
+.sbar__mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--ed-text) 22%, transparent);
+  pointer-events: none;
+}
+
+/* --------------------------- Listes interactives ------------------------- */
+
+.list-item--interactive {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+  border-radius: var(--ed-radius-sm);
+}
+.list-item--interactive:hover,
+.list-item--interactive:focus-visible {
+  transform: translateX(4px);
+  box-shadow: var(--ed-shadow-sm);
+}
+.list-item--interactive:focus-visible {
+  box-shadow: var(--ed-ring);
+}
+
+/* ------------------------------- Historique ------------------------------ */
+
+.ptable-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* Voir `.progress-page > *` : ces lignes contiennent le tableau large dans un
+     scroll interne au lieu d'élargir la page. */
+  min-width: 0;
+  max-width: 100%;
+  /*
+   * 🔴 Bloc contenant des éléments masqués en `position: absolute`.
+   * Sans lui, un tel élément prend la CARTE comme référence (seul ancêtre
+   * `position: relative`), donc une position calculée dans un tableau de 548 px
+   * qui déborde — et il échappe au `overflow-x: auto` puisqu'il n'est plus dans
+   * le flux du conteneur défilant. C'était exactement le bug mesuré à 513 px sur
+   * un viewport de 390.
+   */
+  position: relative;
+}
+/* Même garde au niveau des cellules : un élément absolument positionné dans une
+   cellule reste dans cette cellule, donc dans le conteneur défilant. */
+.ptable th,
+.ptable td {
+  position: relative;
+}
+.ptable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+/* Largeur plancher : en dessous, les colonnes s'écraseraient. Le débordement est
+   absorbé par `.ptable-scroll`, jamais par la page. */
+.ptable {
+  min-width: 520px;
+}
+.ptable thead tr {
+  text-align: left;
+  color: var(--ed-text-mute);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ptable th,
+.ptable td {
+  padding: 9px 10px;
+  text-align: left;
+  font-weight: 500;
+}
+.ptable thead th {
+  padding: 8px 10px;
+  font-weight: 700;
+}
+.ptable tbody th {
+  font-weight: 650;
+  color: var(--ed-text);
+}
+.ptable tbody tr {
+  border-top: 1px solid var(--ed-border);
+  transition: background 0.18s ease;
+}
+.ptable tbody tr:hover {
+  background: var(--ed-surface-2);
+}
+.ptable__mute {
+  color: var(--ed-text-mute);
+}
+.ptable__action {
+  text-align: right;
+}
+
+/* ------------------------------- Responsive ------------------------------ */
+
+@media (max-width: 1080px) {
+  .phero {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+  .phero__level {
+    width: 100%;
+  }
+  .phero__level-head {
+    justify-content: center;
+  }
+  .phero__streak {
+    justify-content: center;
+  }
+  .phero__lessons {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .phero__gauges {
+    gap: 6px;
+  }
+  .gauge__hint {
+    display: none;
+  }
+  .pchart__hint {
+    display: none;
+  }
+  .pchart__legend {
+    gap: 10px;
+  }
+}
+
+/* ==========================================================================
+   Animations réduites — préférence système OU réglage du compte
+   ==========================================================================
+   Tout ce qui bouge en continu est coupé. Les transitions d'état (survol)
+   restent, mais instantanées : l'information n'est jamais perdue, seul le
+   mouvement disparaît.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .phero__xp-shine,
+  .phero__flame.is-alive,
+  .sbar__shine {
+    animation: none !important;
+  }
+  .phero__xp-shine,
+  .sbar__shine {
+    display: none;
+  }
+  .stat--interactive:hover,
+  .stat--interactive:focus-visible,
+  .sbar:hover,
+  .sbar:focus-visible,
+  .list-item--interactive:hover,
+  .list-item--interactive:focus-visible {
+    transform: none;
+  }
+}
+
+[data-animations='off'] .phero__xp-shine,
+[data-animations='off'] .phero__flame.is-alive,
+[data-animations='off'] .sbar__shine {
+  animation: none !important;
+}
+[data-animations='off'] .phero__xp-shine,
+[data-animations='off'] .sbar__shine {
+  display: none;
+}
+[data-animations='off'] .stat--interactive:hover,
+[data-animations='off'] .sbar:hover,
+[data-animations='off'] .list-item--interactive:hover {
+  transform: none;
+}
+
+
+/* Garde-fous complémentaires : chaque conteneur de la page doit pouvoir
+   rétrécir sous la largeur de son contenu, sinon le débordement réapparaît
+   dès qu'une donnée est un peu longue (nom de matière, thème). */
+.progress-page .card,
+.progress-page .split,
+.progress-page .split > *,
+.progress-page .pchart,
+.progress-page .donut,
+.progress-page .sbar-list,
+.progress-page .phero,
+.progress-page .phero__level {
+  min-width: 0;
+  max-width: 100%;
+}

@@ -546,6 +546,11 @@ async function main() {
     const { html } = await mount(React.createElement(Probe, { page: 'progress' }), 'Progression');
     check('Progression : indicateurs', html.includes('réussite globale') || html.includes('Ma progression'));
     check('Progression : section maîtrise', html.includes('maîtrisés') || html.includes('Aucune donnée'));
+    // Bande héros de la refonte v3.3 : doit rendre même SANS aucune donnée
+    // (un compte neuf ne doit jamais arriver sur une page cassée).
+    check('Progression : bandeau héros rendu sans données', (html.match(/class="gauge"/g) ?? []).length === 3, `${(html.match(/class="gauge"/g) ?? []).length} jauges`);
+    check('Progression : barre de niveau / XP présente', html.includes('phero__xp'));
+    check('Progression : état vide explicite', html.includes('Aucune donnée'));
   }
   {
     const { html } = await mount(React.createElement(Probe, { page: 'tools' }), 'Index des outils');
