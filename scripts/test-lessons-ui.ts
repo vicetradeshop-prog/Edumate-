@@ -258,7 +258,10 @@ check('récapitulatif : points clés affichés', text().includes('Ce qu’il fau
 await click(byText('button', 'Terminer la leçon'));
 check('écran final : bilan et pourcentage', text().includes('exercices') && host.querySelectorAll('.lp-finish').length === 1);
 check('écran final : score 2/3 (une erreur, deux réussites)', text().includes('2/3'), text().slice(0, 400));
-check('confettis présents (taux ≥ 60 %)', host.querySelectorAll('.confetti').length === 1);
+// Confettis réservés à la VRAIE validation (>= 80 %) : ce scénario fait 2/3
+// (~66 %), ils sont donc volontairement ABSENTS — cohérent avec la bannière
+// « leçon à rejouer ». Le seuil dans l'autre sens est vérifié en section 7 bis.
+check('pas de confettis sous 80 % de réussite (2/3 ici)', host.querySelectorAll('.confetti').length === 0);
 check('boutons de rejou présents', Boolean(byText('button', 'Rejouer ce parcours')));
 
 // Rejouer : tout repart de zéro
@@ -369,11 +372,20 @@ await unmount();
 console.log('\n── 6. Carte compacte du tableau de bord ──');
 
 await mount(React.createElement(MemoryRouter, { initialEntries: ['/tableau-de-bord'] }, React.createElement(RevisionCard, { items: revisionSuggestions(), loading: false })));
-const listBox = host.querySelector('.revision-list');
+// `.revision-list` a été remplacé par `.revision-viewport` (fenêtre à hauteur
+// bornée dans laquelle la piste défile). Un sélecteur périmé faisait passer ces
+// contrôles À VIDE : `querySelectorAll` sur une classe inexistante renvoie une
+// liste vide, et `[].every(...)` vaut toujours true.
+const listBox = host.querySelector('.revision-viewport');
 check('le conteneur de la liste est présent', Boolean(listBox));
-check('les 7 suggestions sont listées intégralement', host.querySelectorAll('.revision-list .list-item').length === 7);
+check('les 7 suggestions sont listées intégralement', host.querySelectorAll('.revision-viewport .list-item').length === 7,
+  `${host.querySelectorAll('.revision-viewport .list-item').length} lignes`);
+const rowLinks = [...host.querySelectorAll<HTMLAnchorElement>('.revision-viewport a')];
 check('chaque ligne pointe vers la révision interactive',
-  [...host.querySelectorAll<HTMLAnchorElement>('.revision-list a')].every((a) => a.getAttribute('href')?.includes('/revision')));
+  rowLinks.length === 7 && rowLinks.every((a) => a.getAttribute('href')?.includes('/revision')),
+  `${rowLinks.length} liens`);
+check('une seule copie de la liste en mode statique (jsdom : pas de défilement)',
+  host.querySelectorAll('.revision-group').length === 1);
 await unmount();
 
 await mount(React.createElement(MemoryRouter, { initialEntries: ['/tableau-de-bord'] }, React.createElement(RevisionCard, { items: [], loading: false })));
@@ -384,10 +396,27 @@ await unmount();
 // défilement interne dans la feuille de style (jsdom ne charge pas le CSS).
 const fs = await import('node:fs');
 const css = fs.readFileSync(new URL('../src/client/styles/lessons.css', import.meta.url), 'utf8');
+/*
+ * Gardes CSS de la carte « À réviser ».
+ *
+ * 🔴 Les deux contrôles historiques visaient `.revision-list`, classe supprimée
+ * par le carrousel v3.1 : `css.indexOf` renvoyait -1, la règle extraite était
+ * vide et les assertions passaient À VIDE (un faux vert). Elles portent
+ * désormais sur `.revision-viewport`, le conteneur réellement livré, et
+ * vérifient l'intention actuelle : hauteur bornée, rien ne dépasse du cadre,
+ * boucle continue sans couture, repli manuel accessible.
+ */
 check('🔴 `.revision-scroll` (conteneur à flèches de défilement) a disparu', !css.includes('.revision-scroll'));
-const listRule = css.slice(css.indexOf('.revision-list {'), css.indexOf('}', css.indexOf('.revision-list {')));
-check('🔴 `.revision-list` n’a PAS de hauteur maximale (tout est visible d’un coup)', !/max-height/.test(listRule), listRule.trim());
-check('🔴 `.revision-list` ne défile PAS (pas de barre à flèches)', !/overflow-y/.test(listRule));
+check('🔴 `.revision-list` (ancien conteneur) a disparu', !css.includes('.revision-list'));
+const viewportAt = css.indexOf('.revision-viewport {');
+check('la règle `.revision-viewport` existe bien dans lessons.css', viewportAt > 0);
+const viewportRule = viewportAt > 0 ? css.slice(viewportAt, css.indexOf('}', viewportAt)) : '';
+check('la fenêtre a une hauteur bornée (rien ne pousse la carte)', /max-height/.test(viewportRule), viewportRule.trim());
+check('la fenêtre masque ce qui dépasse du cadre', /overflow:\s*hidden/.test(viewportRule));
+check('le défilement automatique est une boucle continue', css.includes('.revision-track--rolling') && css.includes('@keyframes revision-roll'));
+check('la boucle est sans couture (distance calculée par le composant)', css.includes('--revision-loop'));
+check('anti-débordement : les enfants de la grille ont `min-width: 0`', /\.revision-group > \*[\s\S]{0,120}min-width:\s*0/.test(css));
+check('repli manuel scrollable quand les animations sont réduites', /\.revision-viewport--manual[\s\S]{0,120}overflow-y:\s*auto/.test(css));
 check('les cartes « À réviser en priorité » ancrent leurs boutons en bas', css.includes('.revision-priority-card__actions') && /margin-top:\s*auto/.test(css));
 check('le libellé des boutons de matière est repliable (anti-débordement)', css.includes('.lesson-subject__name') && /overflow-wrap:\s*break-word/.test(css));
 check('le mode « animations réduites » coupe les animations CSS', css.includes('.lp--reduced') && css.includes('animation: none !important'));
@@ -397,6 +426,8 @@ check('le mode « animations réduites » coupe les animations CSS', css.include
    ================================================================== */
 console.log('\n── 7. Animations réduites ──');
 
+// Mémorisé pour être restauré en section 7 bis (contrôle en sens inverse).
+const nativeMatchMedia = window.matchMedia;
 (window as unknown as { matchMedia: (q: string) => unknown }).matchMedia = (query: string) => ({
   matches: query.includes('prefers-reduced-motion'),
   media: query,
@@ -433,6 +464,39 @@ await click(byText('.lp-cta button', 'Continuer'));
 await click(byText('button', 'Voir mon bilan') ?? byText('button', 'Terminer'));
 check('écran final atteint', host.querySelectorAll('.lp-finish').length === 1);
 check('🔴 AUCUN confetti en mode « animations réduites »', host.querySelectorAll('.confetti').length === 0);
+await unmount();
+
+/* ==================================================================
+   7 bis. Contrôle en sens inverse : animations AUTORISÉES
+   ==================================================================
+   Sans ce pendant, « aucun confetti en mode sobre » passerait aussi si les
+   confettis n'étaient JAMAIS rendus. Même scénario (1 exercice, bonne réponse
+   = 100 %, donc au-dessus du seuil de 80 %), mais avec la préférence système
+   d'origine restaurée.
+   ================================================================== */
+console.log('\n── 7 bis. Animations autorisées ──');
+
+(window as unknown as { matchMedia: unknown }).matchMedia = nativeMatchMedia;
+
+await mount(
+  React.createElement(
+    MemoryRouter,
+    { initialEntries: ['/lecons/x'] },
+    React.createElement(StepPlayer, { steps: miniSteps, meta: { topicName: 'mini', emoji: '🎯', color: '#6c5ce7' }, playthroughId: 'p6' }),
+  ),
+);
+await act(async () => { await wait(200); });
+check('🔴 la préférence « animations réduites » n’est plus appliquée', host.querySelectorAll('.lesson-player.lp--reduced').length === 0);
+await click(byText('button', 'C’est parti'));
+await click([...host.querySelectorAll<HTMLElement>('.lp-option')][0]);
+check('bonne réponse : 1/1 = 100 %, au-dessus du seuil de 80 %', text().includes('Bravo'));
+await click(byText('.lp-cta button', 'Continuer'));
+await click(byText('button', 'Voir mon bilan') ?? byText('button', 'Terminer'));
+check('écran final atteint (100 %)', host.querySelectorAll('.lp-finish').length === 1);
+check('🔴 confettis présents à 100 % de réussite', host.querySelectorAll('.confetti').length === 1);
+check('les confettis sont bien peuplés', host.querySelectorAll('.confetti span').length >= 50,
+  `${host.querySelectorAll('.confetti span').length} morceaux`);
+check('le verdict de réussite est affiché', text().includes('Mission accomplie'));
 await unmount();
 
 /* ------------------------------------------------------------------ */

@@ -1111,3 +1111,92 @@
 @media (prefers-reduced-motion: reduce) {
   .wake__ring, .wake__orbit, .wake__brand, .wake__bar span, .wake__message { animation: none; }
 }
+
+/* ==========================================================================
+   Jauge de robustesse du mot de passe (components/ui/PasswordStrength.tsx)
+   ==========================================================================
+   Quatre segments qui s'allument un à un. Le remplissage est animé par
+   framer-motion (`scaleX`), le CSS ne fournit donc que la piste et la couleur
+   de fond : rien ne se bat avec le moteur d'animation.
+   -------------------------------------------------------------------------- */
+
+.pwd-strength {
+  display: grid;
+  gap: 7px;
+  /* Remontée légère : la jauge se cale sous le champ sans alourdir l'empilement. */
+  margin-top: -2px;
+}
+.pwd-strength__bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+.pwd-strength__track {
+  position: relative;
+  height: 5px;
+  border-radius: var(--ed-radius-pill);
+  background: color-mix(in srgb, var(--ed-text-mute) 22%, transparent);
+  overflow: hidden;
+}
+.pwd-strength__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-origin: left center;
+  /* Lueur discrète sous le segment actif. */
+  box-shadow: 0 0 10px currentColor;
+}
+.pwd-strength__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 18px;
+}
+.pwd-strength__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.pwd-strength__ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ed-success);
+}
+.pwd-strength__checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  overflow: hidden;
+}
+.pwd-strength__checks li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.79rem;
+  line-height: 1.45;
+  color: var(--ed-text-mute);
+}
+.pwd-strength__checks li.is-ok {
+  color: var(--ed-success);
+}
+.pwd-strength__checks li.is-todo svg {
+  opacity: 0.55;
+}
+.pwd-strength__bonus {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--ed-radius-pill);
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ed-text-mute);
+  background: color-mix(in srgb, var(--ed-text-mute) 16%, transparent);
+}

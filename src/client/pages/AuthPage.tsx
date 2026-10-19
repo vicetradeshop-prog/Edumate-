@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, LogIn, Mail, Lock, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowRight, KeyRound, LogIn, Mail, Lock, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/Button.js';
 import { Field, TextInput } from '../components/ui/Field.js';
-import { Logo, Notice } from '../components/ui/Feedback.js';
+import { Notice } from '../components/ui/Feedback.js';
 import { Toasts } from '../components/ui/Toasts.js';
+import { AuthAside } from '../components/layout/AuthAside.js';
 import { ApiError } from '../lib/api.js';
 import { toast, useAuth, useUi } from '../lib/store.js';
 
@@ -17,6 +18,9 @@ interface AuthPageProps {
  * Page de connexion.
  * La création de compte passe par le parcours guidé « /inscription »
  * (8 étapes animées) : ici, on propose donc surtout la connexion rapide.
+ *
+ * Le mot de passe oublié mène à « /mot-de-passe-oublie » (demande de lien par
+ * e-mail) puis « /reinitialiser?token=… » (nouveau mot de passe).
  */
 export default function AuthPage({ mode = 'login' }: AuthPageProps) {
   const navigate = useNavigate();
@@ -79,39 +83,16 @@ export default function AuthPage({ mode = 'login' }: AuthPageProps) {
   return (
     <div className="auth-shell">
       <Toasts />
-      <aside className="auth-aside">
-        <span className="auth-aside__shape" style={{ width: 320, height: 320, top: -90, right: -80 }} />
-        <span className="auth-aside__shape" style={{ width: 210, height: 210, bottom: -60, left: -50 }} />
-        <div className="ed-row" style={{ gap: 11, position: 'relative' }}>
-          <Logo size={44} />
-          <span style={{ fontFamily: 'var(--ed-font-display)', fontSize: '1.5rem', fontWeight: 800 }}>EduMate</span>
-        </div>
-
-        <motion.div
-          style={{ position: 'relative', maxWidth: 460 }}
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <h1 style={{ color: '#fff', marginBottom: 12, fontSize: 'clamp(1.7rem, 1.2rem + 1.6vw, 2.4rem)' }}>
-            Reprends tes révisions exactement là où tu les as laissées.
-          </h1>
-          <p style={{ opacity: 0.94, fontSize: '1.03rem' }}>
-            Ta progression, tes favoris, ton calendrier et tes conversations avec l’assistant t’attendent.
-          </p>
-          <ul style={{ listStyle: 'none', padding: 0, marginTop: 26, display: 'grid', gap: 11 }}>
-            {['Progression sauvegardée à chaque quiz', 'Assistant de devoirs disponible 24 h/24', 'Aucune publicité, aucune donnée revendue'].map((item) => (
-              <li key={item} className="ed-row" style={{ gap: 9, color: '#fff' }}>
-                <ShieldCheck size={18} /> {item}
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-
-        <p style={{ position: 'relative', fontSize: '0.85rem', opacity: 0.85 }}>
-          Tes données restent privées, protégées, et ne sont jamais revendues.
-        </p>
-      </aside>
+      <AuthAside
+        emoji="🦉"
+        title="Reprends tes révisions exactement là où tu les as laissées."
+        description="Ta progression, tes favoris, ton calendrier et tes conversations avec l’assistant t’attendent."
+        bullets={[
+          'Progression sauvegardée à chaque quiz',
+          'Assistant de devoirs disponible 24 h/24',
+          'Aucune publicité, aucune donnée revendue',
+        ]}
+      />
 
       <section className="auth-panel">
         <motion.div
@@ -174,6 +155,23 @@ export default function AuthPage({ mode = 'login' }: AuthPageProps) {
                 />
               )}
             </Field>
+
+            {/*
+              Placé APRÈS le champ et hors du <label> : un lien imbriqué dans une
+              étiquette capterait le clic au profit du champ et serait annoncé
+              deux fois par les lecteurs d'écran.
+            */}
+            <motion.div
+              className="auth-forgot-row"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.25, duration: 0.4 }}
+            >
+              <Link to="/mot-de-passe-oublie" state={{ email }} className="auth-forgot-link">
+                <KeyRound size={14} aria-hidden="true" />
+                Mot de passe oublié ?
+              </Link>
+            </motion.div>
 
             <Button type="submit" size="lg" block loading={busy} iconRight={<ArrowRight size={18} />}>
               Se connecter

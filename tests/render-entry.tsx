@@ -27,6 +27,8 @@ import SettingsPage from '../src/client/pages/SettingsPage.js';
 import LandingPage from '../src/client/pages/LandingPage.js';
 import AuthPage from '../src/client/pages/AuthPage.js';
 import OnboardingPage from '../src/client/pages/OnboardingPage.js';
+import ForgotPasswordPage from '../src/client/pages/ForgotPasswordPage.js';
+import ResetPasswordPage from '../src/client/pages/ResetPasswordPage.js';
 import ClockToolPage from '../src/client/pages/tools/ClockToolPage.js';
 import TimerToolPage from '../src/client/pages/tools/TimerToolPage.js';
 import StopwatchToolPage from '../src/client/pages/tools/StopwatchToolPage.js';
@@ -47,6 +49,8 @@ export const PAGES = {
   landing: LandingPage,
   auth: AuthPage,
   onboarding: OnboardingPage,
+  forgot: ForgotPasswordPage,
+  reset: ResetPasswordPage,
   dashboard: DashboardPage,
   quizHub: QuizHubPage,
   quizDetail: QuizDetailPage,
@@ -76,7 +80,7 @@ export const PAGES = {
 
 export type PageKey = keyof typeof PAGES;
 
-/ Chemins associés aux pages qui lisent des paramètres d'URL. */
+/** Chemins associés aux pages qui lisent des paramètres d'URL. */
 const ROUTES: Partial<Record<PageKey, string>> = {
   quizDetail: '/quiz/:topicId',
   lesson: '/lecons/:topicId',

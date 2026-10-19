@@ -20,7 +20,7 @@ import type {
   User,
 } from '../../shared/types.js';
 import { getStorage, readList, writeList } from './storage.js';
-import { newId } from './auth.js';
+import { hashPassword, newId } from './auth.js';
 import { findTopic } from './catalog.js';
 
 /**
@@ -57,6 +57,15 @@ export const K = {
    * il ne fait donc pas partie des clés supprimées avec un compte.
    */
   lessonAi: (topicId: string): string => `lesson:ai:${topicId}`,
+  /**
+   * Réinitialisation de mot de passe (voir `lib/passwordReset.ts`).
+   * Seule l'EMPREINTE SHA-256 du jeton est stockée, jamais le jeton brut.
+   */
+  passwordResetToken: (tokenHash: string): string => `pwreset:token:${tokenHash}`,
+  /** Empreinte du jeton actif d'un compte : sert à révoquer le précédent. */
+  passwordResetByUser: (userId: string): string => `pwreset:user:${userId}`,
+  /** Compteur anti-abus (délai minimal + plafond horaire) par adresse e-mail. */
+  passwordResetLimit: (email: string): string => `pwreset:limit:${normalizeEmail(email)}`,
 };
 
 export function normalizeEmail(email: string): string {
@@ -70,6 +79,22 @@ export function normalizeEmail(email: string): string {
 export interface StoredUser extends User {
   passwordHash: string;
   demo?: boolean;
+  /**
+   * Compteur incrémenté à chaque changement de mot de passe.
+   *
+   * Il est recopié dans les jetons de session (`pv`) : tout jeton portant une
+   * version différente de la version courante est rejeté, ce qui ferme toutes
+   * les sessions ouvertes ailleurs (vol de cookie, appareil partagé, lien de
+   * réinitialisation utilisé depuis un autre navigateur).
+   * Absent des comptes créés avant cette fonctionnalité : lu comme 0.
+   */
+  tokenVersion?: number;
+  /**
+   * Horodatage ISO du dernier changement de mot de passe.
+   * Purement informatif (journal, futur affichage « sécurité du compte ») :
+   * la révocation, elle, repose sur `tokenVersion`.
+   */
+  passwordChangedAt?: string;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -87,7 +112,10 @@ export const DEFAULT_PREFERENCES: Preferences = {
 
 /** Retire les champs sensibles avant tout renvoi au client. */
 export function toPublicUser(user: StoredUser): User {
-  const { passwordHash: _hash, ...rest } = user;
+  // `passwordHash` est le secret lui-même ; `tokenVersion` et
+  // `passwordChangedAt` sont des données techniques de révocation de session,
+  // sans intérêt pour l'interface (et inutiles à exposer).
+  const { passwordHash: _hash, tokenVersion: _pv, passwordChangedAt: _pwdAt, ...rest } = user;
   return rest as User;
 }
 
@@ -170,6 +198,100 @@ export async function updateUser(id: string, patch: Partial<Omit<StoredUser, 'id
   return updated;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Mot de passe & révocation des sessions ouvertes ailleurs            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Cache mémoire de `tokenVersion` par compte.
+ *
+ * Pourquoi un cache ? Vérifier qu'un jeton n'a pas été révoqué exige de connaître
+ * la version courante du compte, donc une lecture en base. La faire à CHAQUE
+ * requête doublerait la consommation du quota Upstash (10 000 commandes/jour en
+ * gratuit). Render exécutant un seul process, la valeur est lue une fois par
+ * compte puis conservée ; `noteTokenVersion` la rafraîchit immédiatement à chaque
+ * changement de mot de passe, donc la révocation reste effective sans délai.
+ *
+ * Taille bornée pour qu'un grand nombre d'utilisateurs ne fasse pas grossir la
+ * mémoire indéfiniment : les entrées les plus anciennes sont évincées.
+ */
+const TOKEN_VERSION_CACHE_LIMIT = 2000;
+const tokenVersionCache = new Map<string, number>();
+
+function rememberTokenVersion(userId: string, version: number): void {
+  if (tokenVersionCache.size >= TOKEN_VERSION_CACHE_LIMIT && !tokenVersionCache.has(userId)) {
+    const oldest = tokenVersionCache.keys().next().value;
+    if (oldest !== undefined) tokenVersionCache.delete(oldest);
+  }
+  tokenVersionCache.set(userId, version);
+}
+
+/** Oublie la valeur en cache (compte supprimé, réinitialisation des tests). */
+export function forgetTokenVersion(userId: string): void {
+  tokenVersionCache.delete(userId);
+}
+
+/** Force une version en cache : appelé juste après un changement de mot de passe. */
+export function noteTokenVersion(userId: string, version: number): void {
+  rememberTokenVersion(userId, version);
+}
+
+/**
+ * Version courante du mot de passe d'un compte (0 si jamais changé).
+ *
+ * En cas de base injoignable on renvoie la valeur en cache ou `-1`, et `-1`
+ * signifie « inconnue » : `isTokenRevoked` n'invalide alors rien. Mieux vaut une
+ * session acceptée qu'un élève enfermé dehors par une panne réseau.
+ */
+export async function tokenVersionFor(userId: string): Promise<number> {
+  const cached = tokenVersionCache.get(userId);
+  if (cached !== undefined) return cached;
+  try {
+    const user = await findUserById(userId);
+    if (!user) return -1;
+    const version = Number.isFinite(user.tokenVersion) ? Number(user.tokenVersion) : 0;
+    rememberTokenVersion(userId, version);
+    return version;
+  } catch (error) {
+    console.warn(`[EduMate] Version de session illisible (base injoignable) : ${(error as Error).message}`);
+    return -1;
+  }
+}
+
+/**
+ * Le jeton est-il révoqué ?
+ *
+ * `currentVersion < 0` signifie « version courante inconnue » (base injoignable
+ * ou compte supprimé) : on ne révoque rien, le contrôle d'existence du compte
+ * est déjà assuré par les routes qui relisent l'utilisateur.
+ */
+export function isTokenRevoked(payloadVersion: number | undefined, currentVersion: number): boolean {
+  if (currentVersion < 0) return false;
+  return (payloadVersion ?? 0) !== currentVersion;
+}
+
+/**
+ * Remplace le mot de passe d'un compte et révoque toutes ses sessions ouvertes.
+ *
+ * Unique point de passage pour les changements de mot de passe (réinitialisation
+ * par e-mail, modification depuis le profil, dépannage administrateur) : le
+ * hachage, l'incrémentation du compteur de session et le rafraîchissement du
+ * cache sont donc toujours cohérents — impossible d'oublier l'un des trois.
+ */
+export async function setUserPassword(userId: string, plainPassword: string): Promise<StoredUser | null> {
+  const store = await getStorage();
+  const current = await store.get<StoredUser>(K.userById(userId));
+  if (!current) return null;
+  const nextVersion = (Number.isFinite(current.tokenVersion) ? Number(current.tokenVersion) : 0) + 1;
+  const updated = await updateUser(userId, {
+    passwordHash: hashPassword(plainPassword),
+    passwordChangedAt: new Date().toISOString(),
+    tokenVersion: nextVersion,
+  });
+  if (updated) noteTokenVersion(userId, nextVersion);
+  return updated;
+}
+
 /** Toutes les clés rattachées à un compte (suppression en cascade, export). */
 export function userDataKeys(userId: string): string[] {
   return [
@@ -183,6 +305,8 @@ export function userDataKeys(userId: string): string[] {
     K.exams(userId),
     K.examSessions(userId),
     K.lessonResults(userId),
+    // Jeton de réinitialisation de mot de passe encore actif, s'il existe.
+    K.passwordResetByUser(userId),
   ];
 }
 
@@ -194,17 +318,29 @@ export function userDataKeys(userId: string): string[] {
 export async function deleteUser(id: string): Promise<{ deletedKeys: string[] }> {
   const store = await getStorage();
 
-  // 1) Lecture groupée du compte et de l'index global : une seule requête HTTP.
-  const [user, rawIndex] = await store.getMany<StoredUser | string[]>([K.userById(id), K.users]);
+  // 1) Lecture groupée du compte, de l'index global et du jeton de
+  //    réinitialisation éventuel : une seule requête HTTP.
+  const [user, rawIndex, resetHash] = await store.getMany<StoredUser | string[] | string>([
+    K.userById(id),
+    K.users,
+    K.passwordResetByUser(id),
+  ]);
   const account = (user as StoredUser | null) ?? null;
 
-  // Toutes les clés du compte, y compris l'index e-mail, sont effacées en une
-  // seule commande DEL (Redis accepte plusieurs clés). Sans ce groupage, la
-  // suppression coûterait une dizaine de requêtes HTTP — à rapprocher du quota
-  // gratuit d'Upstash (10 000 commandes par jour).
+  // Toutes les clés du compte, y compris l'index e-mail et les jetons de
+  // réinitialisation en attente, sont effacées en une seule commande DEL
+  // (Redis accepte plusieurs clés). Sans ce groupage, la suppression coûterait
+  // une dizaine de requêtes HTTP — à rapprocher du quota gratuit d'Upstash
+  // (10 000 commandes par jour).
   const keysToDelete = [...userDataKeys(id)];
-  if (account) keysToDelete.push(K.userIdByEmail(account.email));
+  if (account) {
+    keysToDelete.push(K.userIdByEmail(account.email));
+    keysToDelete.push(K.passwordResetLimit(account.email));
+  }
+  if (typeof resetHash === 'string' && resetHash) keysToDelete.push(K.passwordResetToken(resetHash));
   const uniqueKeys = [...new Set(keysToDelete)];
+  // Le cache de révocation ne doit pas conserver la version d'un compte disparu.
+  forgetTokenVersion(id);
 
   // 2) Suppression + réécriture de l'index : une seule requête HTTP.
   const index = (Array.isArray(rawIndex) ? (rawIndex as string[]) : []).filter((value) => value !== id);

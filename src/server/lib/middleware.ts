@@ -8,7 +8,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { config } from '../lib/config.js';
 import { verifyToken, type TokenPayload } from '../lib/auth.js';
-import { findUserById } from '../lib/store.js';
+import { findUserById, isTokenRevoked, tokenVersionFor } from '../lib/store.js';
 
 /* ------------------------------------------------------------------ */
 /*  Erreurs HTTP                                                       */
@@ -32,6 +32,11 @@ export const unauthorized = (message = 'Vous devez être connecté pour accéder
 export const forbidden = (message = 'Cette action ne vous est pas autorisée.'): HttpError => new HttpError(403, 'forbidden', message);
 export const notFound = (message = 'Ressource introuvable.'): HttpError => new HttpError(404, 'not_found', message);
 export const conflict = (message: string): HttpError => new HttpError(409, 'conflict', message);
+export const tooManyRequests = (message: string, retryAfterSec?: number): HttpError => {
+  const error = new HttpError(429, 'too_many_requests', message);
+  if (retryAfterSec && retryAfterSec > 0) error.details = { retryAfterSec };
+  return error;
+};
 export const serviceUnavailable = (message: string): HttpError => new HttpError(503, 'service_unavailable', message);
 
 /** Enveloppe les gestionnaires asynchrones pour propager les erreurs. */
@@ -48,6 +53,12 @@ export function errorHandler(error: unknown, _req: Request, res: Response, next:
     return;
   }
   if (error instanceof HttpError) {
+    // `Retry-After` : en-tête standard que le client peut exploiter pour
+    // afficher un compte à rebours (limitation de débit du mot de passe oublié).
+    if (error.status === 429) {
+      const retry = (error.details as { retryAfterSec?: number } | undefined)?.retryAfterSec;
+      if (retry && retry > 0) res.setHeader('Retry-After', String(Math.ceil(retry)));
+    }
     res.status(error.status).json({ error: error.code, message: error.message, details: error.details });
     return;
   }
@@ -144,15 +155,47 @@ export function readToken(req: Request): string | null {
   return null;
 }
 
-/** Rattache l'utilisateur connecté à la requête, sans la bloquer. */
+/**
+ * Rattache l'utilisateur connecté à la requête, sans la bloquer.
+ *
+ * Deux contrôles successifs :
+ *   1. **signature et expiration** du jeton (pur calcul, aucun I/O) ;
+ *   2. **révocation** : un jeton dont la version de mot de passe (`pv`) diffère
+ *      de la version courante du compte est rejeté. Sans cela, utiliser un lien
+ *      de réinitialisation sur un appareil ne fermerait pas les sessions ouvertes
+ *      ailleurs — y compris celle d'un éventuel intrus.
+ *
+ * Le second contrôle lit la base au plus UNE fois par compte et par process
+ * (cache dans `lib/store.ts`), donc le quota Upstash n'est pas impacté. En cas
+ * de base injoignable on accepte le jeton signé : mieux vaut une session valide
+ * qu'un élève enfermé dehors par une panne réseau.
+ */
 export function attachUser(): RequestHandler {
   return (req, _res, next) => {
     const token = readToken(req);
-    if (token) {
-      const payload = verifyToken(token);
-      if (payload) req.auth = payload;
+    if (!token) {
+      next();
+      return;
     }
-    next();
+    const payload = verifyToken(token);
+    if (!payload) {
+      next();
+      return;
+    }
+
+    void (async () => {
+      const currentVersion = await tokenVersionFor(payload.sub);
+      if (isTokenRevoked(payload.pv, currentVersion)) {
+        // Jeton d'une version de mot de passe révolue : session révoquée.
+        return;
+      }
+      req.auth = payload;
+    })()
+      .catch((error: unknown) => {
+        console.warn(`[EduMate] Contrôle de session dégradé : ${(error as Error).message}`);
+        req.auth = payload;
+      })
+      .finally(() => next());
   };
 }
 

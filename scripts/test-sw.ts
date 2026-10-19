@@ -28,6 +28,21 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const swPath = path.join(root, 'public', 'sw.js');
 const source = fs.readFileSync(swPath, 'utf8');
 
+/**
+ * Nom du cache de coquille, DÉDUIT du service worker lui-même.
+ *
+ * 🔴 `sw.js` pose `SHELL_CACHE = \`edumate-shell-${VERSION}\`` et `VERSION` est
+ * incrémentée à chaque évolution de la stratégie de cache. Ce test écrivait
+ * « edumate-shell-v2 » en dur : depuis que la version a atteint v8, il ouvrait
+ * un cache VIDE — d'où dix contrôles en échec (pré-cache, revalidation,
+ * navigation, page de secours). Lire la valeur dans la source supprime
+ * définitivement ce décalage : le test suivra tout seul les prochaines versions.
+ */
+const SW_VERSION = /const VERSION\s*=\s*'([^']+)'/.exec(source)?.[1] ?? '';
+const SHELL_NAME = `edumate-shell-${SW_VERSION}`;
+/** Coquille d'une version antérieure, posée avant l'installation puis purgée. */
+const OLD_SHELL_NAME = 'edumate-shell-v0';
+
 let passed = 0;
 const failures: string[] = [];
 function check(label: string, ok: boolean, detail = ''): void {
@@ -321,6 +336,8 @@ try {
   process.exit(1);
 }
 
+check('version du service worker lue dans sw.js', /^v\d+$/.test(SW_VERSION), SW_VERSION || '(introuvable)');
+check('le nom de cache de coquille est cohérent', SHELL_NAME.startsWith('edumate-shell-v') && SHELL_NAME !== OLD_SHELL_NAME, SHELL_NAME);
 check('gestionnaire `install` enregistré', (handlers.get('install') ?? []).length === 1);
 check('gestionnaire `activate` enregistré', (handlers.get('activate') ?? []).length === 1);
 check('gestionnaire `fetch` enregistré', (handlers.get('fetch') ?? []).length === 1);
@@ -330,13 +347,13 @@ check('gestionnaire `message` enregistré', (handlers.get('message') ?? []).leng
 
 console.log('\n── Installation : pré-cache de la coquille ──');
 // Caches préexistants, dont un ancien à purger et un tiers à préserver.
-await caches.open('edumate-shell-v0');
+await caches.open(OLD_SHELL_NAME);
 await caches.open('autre-application-v1');
 const installEvent = dispatch(makeEvent('install'));
 await drain();
 check('skipWaiting appelé à l’installation', skipWaitingCalls === 1, String(skipWaitingCalls));
 
-const shell = await caches.open('edumate-shell-v2');
+const shell = await caches.open(SHELL_NAME);
 const shellKeys = [...shell.entries.keys()];
 check('coquille pré-cachée', shellKeys.length >= 5, `${shellKeys.length} entrées : ${shellKeys.join(', ')}`);
 check('index.html en cache sous une clé unique', shellKeys.filter((key) => key.endsWith('/index.html')).length === 1 && !shellKeys.some((key) => key === ORIGIN + '/'), shellKeys.join(', '));
@@ -349,7 +366,7 @@ console.log('\n── Activation : purge sélective ──');
 dispatch(makeEvent('activate'));
 await drain();
 check('clients.claim appelé', claimCalls === 1, String(claimCalls));
-check('l’ancienne coquille est purgée', !(await caches.has('edumate-shell-v0')));
+check('l’ancienne coquille est purgée', !(await caches.has(OLD_SHELL_NAME)));
 check('le cache d’une autre application est préservé', await caches.has('autre-application-v1'));
 check('le cache d’assets est conservé', await caches.has('edumate-assets'));
 
@@ -398,7 +415,7 @@ const navFast = await respondWith(new FakeRequest(`${ORIGIN}/tableau-de-bord`, {
 check('navigation servie depuis le réseau quand il est rapide', navFast !== null && navFast.ok);
 check('contenu frais renvoyé', (navFast?.body ?? '').includes('shell-v1'), String(navFast?.body));
 await drain();
-const shellAfterNav = await caches.open('edumate-shell-v2');
+const shellAfterNav = await caches.open(SHELL_NAME);
 check('la coquille est écrite sous /index.html', shellAfterNav.entries.has(`${ORIGIN}/index.html`));
 fetchLatencyMs = 0;
 
@@ -413,7 +430,7 @@ servedShellHtml = '<html>shell-v2-NOUVELLE-VERSION</html>';
 const navAfterDeploy = await respondWith(new FakeRequest(`${ORIGIN}/`, { mode: 'navigate', destination: 'document' }));
 check('après redéploiement : le NOUVEAU HTML est servi', (navAfterDeploy?.body ?? '').includes('NOUVELLE-VERSION'), String(navAfterDeploy?.body));
 await drain();
-const shellAfterDeploy = await caches.open('edumate-shell-v2');
+const shellAfterDeploy = await caches.open(SHELL_NAME);
 const cachedShell = shellAfterDeploy.entries.get(`${ORIGIN}/index.html`);
 check('le cache contient désormais la nouvelle version', (cachedShell?.body ?? '').includes('NOUVELLE-VERSION'), String(cachedShell?.body));
 check(
@@ -434,11 +451,11 @@ check('une seule entrée HTML en cache', shellEntries.length === 1, shellEntries
 servedShellHtml = '<html>shell-v3</html>';
 await respondWith(new FakeRequest(`${ORIGIN}/`, { mode: 'navigate', destination: 'document' }));
 await drain();
-const afterRoot = await (await caches.open('edumate-shell-v2')).match(new FakeRequest(`${ORIGIN}/index.html`));
+const afterRoot = await (await caches.open(SHELL_NAME)).match(new FakeRequest(`${ORIGIN}/index.html`));
 check('une navigation sur / met bien à jour la coquille', (afterRoot?.body ?? '').includes('shell-v3'), String(afterRoot?.body));
 await respondWith(new FakeRequest(`${ORIGIN}/quiz`, { mode: 'navigate', destination: 'document' }));
 await drain();
-const afterRoute = await (await caches.open('edumate-shell-v2')).match(new FakeRequest(`${ORIGIN}/index.html`));
+const afterRoute = await (await caches.open(SHELL_NAME)).match(new FakeRequest(`${ORIGIN}/index.html`));
 check('une navigation sur /quiz aussi', (afterRoute?.body ?? '').includes('shell-v3'), String(afterRoute?.body));
 
 console.log('\n── Serveur très lent : repli sur le cache après délai ──');
@@ -455,7 +472,7 @@ await drain();
 /* --------------------------- Hors ligne ---------------------------- */
 
 console.log('\n── Coquille absente et réseau coupé ──');
-await caches.delete('edumate-shell-v2');
+await caches.delete(SHELL_NAME);
 fetchLatencyMs = 0;
 const originalFetch = swSelf.fetch as typeof fakeFetch;
 swSelf.fetch = (async () => {

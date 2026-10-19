@@ -77,6 +77,48 @@ function inferAiProvider(key: string): AiProviderId {
 
 const aiProvider = inferAiProvider(aiApiKey);
 
+/* ------------------------------------------------------------------ */
+/*  E-mails : fournisseur validé dès la lecture de l'environnement      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Valeurs acceptées pour `MAIL_PROVIDER`.
+ *
+ * `auto` (défaut, variable vide) laisse `lib/mailer.ts` déduire le fournisseur
+ * du FORMAT de la clé — même principe que pour l'assistant IA. `log` n'envoie
+ * rien et écrit le message dans les journaux : pratique en local et pour les
+ * tests automatisés.
+ */
+export const MAIL_PROVIDERS = ['auto', 'none', 'log', 'resend', 'brevo', 'sendgrid', 'mailgun', 'postmark', 'smtp'] as const;
+export type MailProviderSetting = (typeof MAIL_PROVIDERS)[number];
+
+function normalizeMailProvider(value: string | undefined): MailProviderSetting {
+  const raw = (value ?? '').trim().toLowerCase();
+  if (!raw) return 'auto';
+  // Alias tolérés : noms commerciaux ou fautes de frappe courantes.
+  const aliases: Record<string, MailProviderSetting> = {
+    sendinblue: 'brevo',
+    sib: 'brevo',
+    resend: 'resend',
+    brevo: 'brevo',
+    sendgrid: 'sendgrid',
+    mailgun: 'mailgun',
+    postmark: 'postmark',
+    smtp: 'smtp',
+    gmail: 'smtp',
+    console: 'log',
+    log: 'log',
+    none: 'none',
+    off: 'none',
+  };
+  const resolved = aliases[raw];
+  if (resolved) return resolved;
+  console.warn(
+    `[EduMate] MAIL_PROVIDER=« ${raw} » est inconnu (${MAIL_PROVIDERS.join(', ')}) : repli sur « log » (aucun e-mail envoyé).`,
+  );
+  return 'log';
+}
+
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const isProduction = nodeEnv === 'production';
 
@@ -107,6 +149,73 @@ export const config = {
     model: process.env.AI_MODEL ?? '',
     baseUrl: process.env.AI_BASE_URL ?? '',
     maxTokens: int(process.env.AI_MAX_TOKENS, 900),
+  },
+
+  /*
+   * Envoi d'e-mails (mot de passe oublié).
+   * Aucune clé n'est versionnée : tout vient de l'environnement, exactement
+   * comme pour l'assistant IA. Sans configuration, EduMate n'envoie rien et
+   * écrit le lien de réinitialisation dans les journaux du serveur.
+   */
+  mail: {
+    provider: normalizeMailProvider(process.env.MAIL_PROVIDER),
+    apiKey: (process.env.MAIL_API_KEY ?? '').trim(),
+    /** Expéditeur : « EduMate <no-reply@mondomaine.fr> » ou adresse nue. */
+    from: (process.env.MAIL_FROM ?? '').trim() || 'EduMate <no-reply@edumate.local>',
+    fromName: (process.env.MAIL_FROM_NAME ?? '').trim() || 'EduMate',
+    replyTo: (process.env.MAIL_REPLY_TO ?? '').trim(),
+    mailgunDomain: (process.env.MAILGUN_DOMAIN ?? '').trim(),
+    mailgunBaseUrl: (process.env.MAILGUN_BASE_URL ?? '').trim() || 'https://api.mailgun.net',
+    timeoutMs: int(process.env.MAIL_TIMEOUT_MS, 10_000),
+    smtp: {
+      host: (process.env.SMTP_HOST ?? '').trim(),
+      port: int(process.env.SMTP_PORT, 587),
+      // 465 = SMTPS implicite (Gmail, OVH) ; 587 = STARTTLS (secure: false).
+      secure: bool(process.env.SMTP_SECURE, Number(process.env.SMTP_PORT ?? 587) === 465),
+      user: (process.env.SMTP_USER ?? '').trim(),
+      pass: process.env.SMTP_PASS ?? '',
+    },
+  },
+
+  /*
+   * Réinitialisation de mot de passe par lien envoyé par e-mail.
+   */
+  passwordReset: {
+    /** Durée de validité du lien, en minutes (30 min par défaut). */
+    ttlMinutes: Math.min(1440, Math.max(5, int(process.env.PASSWORD_RESET_TTL_MINUTES, 30))),
+    /** Chemin côté client du formulaire de nouveau mot de passe. */
+    path: (process.env.PASSWORD_RESET_PATH ?? '').trim() || '/reinitialiser',
+    /** Délai minimal entre deux demandes pour une même adresse (secondes). */
+    cooldownSeconds: Math.max(0, int(process.env.PASSWORD_RESET_COOLDOWN_SECONDS, 60)),
+    /** Nombre maximal de demandes par adresse et par heure. */
+    maxPerHour: Math.max(1, int(process.env.PASSWORD_RESET_MAX_PER_HOUR, 5)),
+    /**
+     * Renvoie le lien dans la réponse HTTP.
+     *
+     * Réservé au développement et aux tests automatisés, où aucun prestataire
+     * d'e-mails n'est configuré. **Forcé à `false` en production**, quelle que
+     * soit la valeur de `EXPOSE_RESET_LINK` : ce réglage permettrait à
+     * n'importe qui de prendre le contrôle d'un compte en connaissant son
+     * adresse, et il trahirait aussi l'existence des comptes (le lien n'est
+     * renvoyé que si le compte existe). En production, le dépannage passe par
+     * les journaux du serveur ou par RECOVERY_EMAIL / RECOVERY_PASSWORD.
+     */
+    exposeLink: isProduction ? false : bool(process.env.EXPOSE_RESET_LINK, true),
+  },
+
+  /*
+   * Dépannage d'urgence d'un compte (mot de passe administrateur perdu,
+   * adresse e-mail inaccessible, aucun prestataire d'e-mail configuré).
+   *
+   * Fonctionne sans e-mail : au démarrage, le serveur applique le nouveau mot
+   * de passe au compte RECOVERY_EMAIL puis journalise l'opération. Les
+   * variables doivent être RETIRÉES de Render immédiatement après, sinon le
+   * mot de passe est réappliqué à chaque redémarrage.
+   */
+  recovery: {
+    email: (process.env.RECOVERY_EMAIL ?? '').trim().toLowerCase(),
+    password: process.env.RECOVERY_PASSWORD ?? '',
+    makeAdmin: bool(process.env.RECOVERY_MAKE_ADMIN, false),
   },
 
   /*
@@ -168,3 +277,33 @@ export function isAdminEmail(email: string | undefined): boolean {
 export function hasAiProvider(): boolean {
   return config.ai.provider !== 'none' && Boolean(config.ai.apiKey);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Adresses publiques                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Base publique du site, sans « / » final.
+ *
+ * `APP_URL` prime (c'est la valeur renseignée sur Render). En son absence on
+ * retombe sur l'URL d'exécution fournie par Render (`RENDER_EXTERNAL_URL`),
+ * puis sur localhost en développement. Sert à construire les liens des e-mails :
+ * un lien relatif y serait inutilisable.
+ */
+export function appBaseUrl(): string {
+  const explicit = (config.appUrl ?? '').trim();
+  const render = (process.env.RENDER_EXTERNAL_URL ?? '').trim();
+  const base = explicit || render || (config.isProduction ? '' : 'http://localhost:5173');
+  return base.replace(/\/+$/, '');
+}
+
+/**
+ * Construit le lien de réinitialisation complet envoyé par e-mail.
+ * Exemple : https://edumateapp.onrender.com/reinitialiser?token=abc123
+ */
+export function passwordResetUrl(rawToken: string): string {
+  const base = appBaseUrl();
+  const path = config.passwordReset.path.startsWith('/') ? config.passwordReset.path : `/${config.passwordReset.path}`;
+  return `${base}${path}?token=${encodeURIComponent(rawToken)}`;
+}
+

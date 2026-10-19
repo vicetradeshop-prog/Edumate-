@@ -13,9 +13,20 @@ import { renderMathText, renderRichText } from '../src/client/lib/richtext.js';
 import { encouragement, formatClock, formatDayLabel, formatDuration, formatNumber, formatPercent, isoDate, starsFor } from '../src/client/lib/format.js';
 import { TRACKS } from '../src/client/lib/music.js';
 import { LIMITS, normalizeEmail, passwordIssues } from '../src/server/lib/validate.js';
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  isStrongPassword,
+  passwordChecks,
+  passwordStrength,
+} from '../src/shared/password.js';
+import { isValidEmailValue, maskEmailValue } from '../src/shared/email.js';
+import { generateResetToken, hashResetToken, safeEqualHex } from '../src/server/lib/passwordReset.js';
+import { buildMailTemplate, passwordResetMail } from '../src/server/lib/mailer.js';
+import { passwordResetUrl } from '../src/server/lib/config.js';
 import { requireEmail, requirePassword } from '../src/server/lib/validation.js';
 import { createToken, hashPassword, newId, verifyPassword, verifyToken } from '../src/server/lib/auth.js';
-import { computeProgress } from '../src/server/lib/store.js';
+import { computeProgress, isTokenRevoked } from '../src/server/lib/store.js';
 import { buildQuestions, familyPool, FAMILIES } from '../src/server/content/index.js';
 import { detectLanguage, LANGUAGES } from '../src/server/lib/languages.js';
 import { conjugateFrench, FRENCH_VERBS } from '../src/server/content/data/french.js';
@@ -525,6 +536,166 @@ test('createToken/verifyToken : jeton signé, expirable et inviolable', () => {
   assert.equal(verifyToken(`${token.slice(0, -2)}xx`), null, 'signature modifiée acceptée');
   assert.equal(verifyToken('a.b.c'), null);
   assert.equal(verifyToken(''), null);
+});
+
+/* ------------------------------------------------------------------ */
+/*  Politique de mot de passe partagée (serveur ET client)             */
+/* ------------------------------------------------------------------ */
+
+test('shared/password : les règles du client sont celles du serveur', () => {
+  // Exactement les mêmes cas que `requirePassword` côté API.
+  assert.deepEqual(passwordIssues('ab1'), ['8 caractères minimum']);
+  assert.deepEqual(passwordIssues('abcdefgh'), ['au moins un chiffre']);
+  assert.deepEqual(passwordIssues('12345678'), ['au moins une lettre']);
+  assert.deepEqual(passwordIssues('motdepasse1'), []);
+  assert.equal(isStrongPassword('motdepasse1'), true);
+  assert.equal(isStrongPassword('court1'), false);
+  assert.equal(isStrongPassword('x'.repeat(PASSWORD_MAX_LENGTH + 1)), false, 'trop long refusé');
+  assert.equal(PASSWORD_MIN_LENGTH, 8);
+});
+
+test('shared/password : la jauge ne monte pas sans les critères EXIGÉS', () => {
+  assert.equal(passwordStrength('').score, 0);
+  assert.equal(passwordStrength('').acceptable, false);
+  assert.equal(passwordStrength('abc').score, 1, 'saisie commencée mais insuffisante');
+  // Long mais sans chiffre : les bonus ne doivent PAS compenser un critère exigé.
+  assert.equal(passwordStrength('abcdefghijklmnop').acceptable, false);
+  assert.equal(passwordStrength('motdepasse1').score, 2);
+  assert.equal(passwordStrength('motdepasse1').acceptable, true);
+  assert.equal(passwordStrength('MotDePasseLong1').score, 3, '12+ caractères = bonus');
+  assert.equal(passwordStrength('MotDePasseLong1!').score, 4, 'tous les bonus');
+  assert.equal(passwordStrength('MotDePasseLong1!').label, 'Excellent');
+});
+
+test('shared/password : 3 critères exigés et 2 bonus, toujours dans le même ordre', () => {
+  const checks = passwordChecks('Abcdefghijkl1!');
+  assert.equal(checks.length, 5);
+  assert.deepEqual(checks.map((check) => check.required), [true, true, true, false, false]);
+  assert.ok(checks.every((check) => check.ok), 'mot de passe complet : tout est coché');
+  const partial = passwordChecks('abc');
+  assert.deepEqual(
+    partial.map((check) => check.ok),
+    [false, true, false, false, false],
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/*  Adresse e-mail partagée + masquage                                 */
+/* ------------------------------------------------------------------ */
+
+test('shared/email : mêmes acceptations que requireEmail', () => {
+  assert.equal(isValidEmailValue(' Eleve@Example.FR '), true);
+  assert.equal(isValidEmailValue('pas-un-email'), false);
+  assert.equal(isValidEmailValue('a@b'), false);
+  assert.equal(isValidEmailValue(''), false);
+  assert.equal(isValidEmailValue(undefined), false);
+  assert.equal(requireEmail(' Eleve@Example.FR '), 'eleve@example.fr');
+});
+
+test('shared/email : le masquage ne révèle jamais l’adresse complète', () => {
+  const masked = maskEmailValue('camille.dupont@lycee.fr');
+  assert.ok(masked.startsWith('c'), 'première lettre conservée');
+  assert.ok(masked.endsWith('@lycee.fr'), 'domaine conservé');
+  assert.ok(masked.includes('•'), 'caractères masqués');
+  assert.ok(!masked.includes('amille'), 'le compte local n’est pas lisible');
+  assert.ok(masked.length < 'camille.dupont@lycee.fr'.length + 4);
+  // La longueur réelle ne doit pas être déductible : 3 et 30 caractères
+  // donnent le même nombre de points (borné entre 3 et 10).
+  assert.equal(maskEmailValue('ab@b.fr').split('@')[0].length, maskEmailValue('abc@b.fr').split('@')[0].length);
+  assert.equal(maskEmailValue('adresse.tres.longue@b.fr').split('@')[0].length, 12, 'plafonné à 10 points');
+  assert.equal(maskEmailValue(''), '••••');
+  assert.equal(maskEmailValue('invalide'), '••••');
+});
+
+/* ------------------------------------------------------------------ */
+/*  Jetons de réinitialisation                                         */
+/* ------------------------------------------------------------------ */
+
+test('jeton de réinitialisation : aléatoire, long et jamais stocké en clair', () => {
+  const first = generateResetToken();
+  const second = generateResetToken();
+  assert.ok(first.length >= 40, `longueur ${first.length}`);
+  assert.notEqual(first, second, 'deux jetons doivent différer');
+  assert.ok(/^[A-Za-z0-9_-]+$/.test(first), 'base64url uniquement (URL propre)');
+
+  const hash = hashResetToken(first);
+  assert.equal(hash.length, 64, 'empreinte SHA-256 hexadécimale');
+  assert.ok(!hash.includes(first), 'l’empreinte ne contient pas le jeton');
+  assert.equal(hash, hashResetToken(first), 'empreinte déterministe');
+  assert.notEqual(hash, hashResetToken(second), 'empreintes distinctes');
+  assert.equal(safeEqualHex(hash, hashResetToken(first)), true);
+  assert.equal(safeEqualHex(hash, hashResetToken(second)), false);
+  assert.equal(safeEqualHex('', ''), false, 'deux empreintes vides ne doivent pas être égales');
+});
+
+test('lien de réinitialisation : URL absolue avec le jeton encodé', () => {
+  const link = passwordResetUrl('abc-DEF_123');
+  assert.ok(link.includes('/reinitialiser?token='), link);
+  assert.ok(link.startsWith('http'), 'un lien relatif serait inutilisable dans un e-mail');
+  assert.ok(link.endsWith('abc-DEF_123'));
+  assert.ok(passwordResetUrl('a b/c').includes('a%20b%2Fc'), 'jeton encodé pour l’URL');
+});
+
+/* ------------------------------------------------------------------ */
+/*  Révocation des sessions par version de mot de passe                */
+/* ------------------------------------------------------------------ */
+
+test('révocation : un jeton d’une version révolue est rejeté', () => {
+  assert.equal(isTokenRevoked(0, 0), false, 'compte jamais modifié');
+  assert.equal(isTokenRevoked(undefined, 0), false, 'ancien jeton sans pv, compte à 0');
+  assert.equal(isTokenRevoked(1, 1), false, 'même version');
+  assert.equal(isTokenRevoked(1, 2), true, 'mot de passe changé depuis');
+  assert.equal(isTokenRevoked(2, 1), true, 'version incohérente dans les deux sens');
+  assert.equal(isTokenRevoked(undefined, 1), true, 'jeton sans pv face à un compte modifié');
+  assert.equal(isTokenRevoked(3, -1), false, 'version courante inconnue : on ne révoque rien');
+});
+
+test('jeton de session : la version de mot de passe est bien signée', () => {
+  const token = createToken({ sub: 'user-1', email: 'a@b.fr', role: 'eleve', pv: 3 });
+  assert.equal(verifyToken(token)?.pv, 3);
+  // Une version modifiée à la main casse la signature.
+  const [header, claims] = token.split('.');
+  const forged = `${header}.${Buffer.from(JSON.stringify({ sub: 'user-1', pv: 0, iat: 0, exp: 9999999999 })).toString('base64url')}.x`;
+  assert.equal(verifyToken(forged), null, 'jeton forgé accepté');
+  assert.ok(header && claims);
+});
+
+/* ------------------------------------------------------------------ */
+/*  Gabarit d’e-mail                                                   */
+/* ------------------------------------------------------------------ */
+
+test('e-mail : le gabarit échappe le HTML (pas d’injection via le prénom)', () => {
+  const { html, text } = buildMailTemplate({
+    firstName: '<script>alert(1)</script>',
+    title: 'Titre <b>gras</b>',
+    intro: ['Une ligne avec <img src=x onerror=alert(1)>'],
+    action: { label: 'Clique <ici>', url: 'https://exemple.fr/reset?token=abc' },
+    expiresIn: '30 minutes',
+    warning: 'Attention <b>test</b>',
+  });
+  assert.ok(!html.includes('<script>'), 'balise script injectée');
+  assert.ok(!html.includes('<img'), 'balise img injectée');
+  assert.ok(html.includes('&lt;script&gt;'), 'le texte est échappé, pas supprimé');
+  assert.ok(html.includes('&lt;b&gt;gras&lt;/b&gt;'));
+  assert.ok(!text.includes('<script>'), 'la version texte est échappée aussi');
+  assert.ok(html.includes('lang="fr"'));
+  assert.ok(!html.includes('<link'), 'aucune feuille externe (bloquée par Gmail/Outlook)');
+  assert.ok(html.includes('Arial,Helvetica,sans-serif'), 'polices système uniquement (les polices web sont bloquées par Gmail/Outlook)');
+});
+
+test('e-mail de réinitialisation : lien, durée et avertissement présents', () => {
+  const mail = passwordResetMail({
+    firstName: 'Camille',
+    resetUrl: 'https://edumateapp.onrender.com/reinitialiser?token=abc123',
+    minutes: 30,
+  });
+  assert.equal(mail.tag, 'password-reset');
+  assert.ok(mail.subject.toLowerCase().includes('mot de passe'));
+  assert.ok(mail.html.includes('https://edumateapp.onrender.com/reinitialiser?token=abc123'));
+  assert.ok(mail.text.includes('https://edumateapp.onrender.com/reinitialiser?token=abc123'), 'repli texte avec le lien');
+  assert.ok(mail.html.includes('30 minutes'));
+  assert.ok(/ignore cet e-mail/i.test(mail.html), 'mention « si ce n\'était pas toi »');
+  assert.equal(mail.to, '', 'le destinataire est posé par l’appelant');
 });
 
 test('newId produit des identifiants uniques', () => {

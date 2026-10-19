@@ -287,7 +287,17 @@ async function main() {
 
   const container = window.document.getElementById('root');
 
-  async function mount(element, label) {
+  /**
+   * Monte un composant et attend que ses effets ET ses animations aboutissent.
+   *
+   * `settle` ajoute des cycles d'attente supplémentaires (220 ms chacun).
+   * Indispensable pour les écrans qui enchaînent les états via `AnimatePresence
+   * mode="wait"` : le nouvel écran n'est monté qu'APRÈS la sortie de l'ancien,
+   * et dans jsdom les images d'animation s'écoulent plus lentement qu'au réel.
+   * Sans ces cycles, on observait un écran intermédiaire figé à 99 % de sa
+   * transition de sortie.
+   */
+  async function mount(element, label, settle = 0) {
     let root;
     let error = null;
     try {
@@ -302,6 +312,11 @@ async function main() {
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 220));
       });
+      for (let cycle = 0; cycle < settle; cycle += 1) {
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 220));
+        });
+      }
     } catch (thrown) {
       error = thrown;
     }
@@ -353,6 +368,64 @@ async function main() {
     const { html } = await mount(React.createElement(Probe, { page: 'auth' }), 'Page de connexion');
     check('Connexion : formulaire présent', html.includes('Bon retour') && html.includes('Mot de passe'));
     check('Connexion : accès au parcours guidé', html.includes('Créer mon espace'));
+    check('Connexion : lien « Mot de passe oublié » présent', html.includes('Mot de passe oublié'));
+    check('Connexion : le lien pointe vers /mot-de-passe-oublie', html.includes('/mot-de-passe-oublie'));
+  }
+
+  console.log('\n── Mot de passe oublié (rendu)');
+  {
+    const { html } = await mount(React.createElement(Probe, { page: 'forgot' }), 'Page mot de passe oublié');
+    check('Oubli : titre rendu', html.includes('Mot de passe oublié'));
+    check('Oubli : champ e-mail présent', html.includes('type="email"') && html.includes('Adresse e-mail du compte'));
+    check('Oubli : bouton d’envoi présent', html.includes('Envoyer le lien de réinitialisation'));
+    check('Oubli : durée de validité annoncée', /30 minutes|une seule fois/.test(html));
+    check('Oubli : colonne décorative partagée', html.includes('auth-aside'));
+    check('Oubli : retour possible vers la connexion', html.includes('/connexion'));
+  }
+  {
+    // Sans jeton dans l'URL : état « lien manquant », aucun appel réseau.
+    const { html } = await mount(
+      React.createElement(Probe, { page: 'reset', route: '/reinitialiser' }),
+      'Réinitialisation sans jeton',
+    );
+    check('Réinit. sans jeton : message explicite', html.includes('Aucun lien de réinitialisation'));
+    check('Réinit. sans jeton : propose un nouveau lien', html.includes('/mot-de-passe-oublie'));
+  }
+  {
+    // Jeton forgé : l'API répond « invalide », la page ne doit pas planter.
+    const { html } = await mount(
+      React.createElement(Probe, { page: 'reset', route: '/reinitialiser?token=jeton-sans-valeur' }),
+      'Réinitialisation avec jeton invalide',
+      6,
+    );
+    check('Réinit. jeton invalide : refus affiché', /n’est pas valide|pas valide/.test(html), html.slice(0, 200));
+    check('Réinit. jeton invalide : pas de champ mot de passe', !html.includes('Nouveau mot de passe</h1>'));
+  }
+  {
+    // Parcours réel : compte créé, lien demandé, jeton extrait puis monté.
+    const address = `rendu.${Date.now()}@edumate.test`;
+    const signup = await nativeFetch(`${base}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName: 'Awa', email: address, password: 'motdepasse123' }),
+    });
+    const forgot = await nativeFetch(`${base}/api/auth/forgot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: address }),
+    });
+    const forgotBody = await forgot.json().catch(() => ({}));
+    const link = typeof forgotBody.devLink === 'string' ? forgotBody.devLink : '';
+    check('Réinit. : lien obtenu depuis l’API', link.includes('/reinitialiser?token='), String(link).slice(0, 90));
+    const route = link ? link.replace(/^https?:\/\/[^/]+/, '') : '/reinitialiser?token=absent';
+    const { html } = await mount(React.createElement(Probe, { page: 'reset', route }), 'Réinitialisation avec jeton valide', 6);
+    check('Réinit. jeton valide : formulaire affiché', html.includes('Nouveau mot de passe'), html.slice(0, 220));
+    check('Réinit. jeton valide : deux champs mot de passe', (html.match(/type="password"/g) ?? []).length === 2);
+    check('Réinit. jeton valide : jauge de robustesse', html.includes('pwd-strength'));
+    check('Réinit. jeton valide : critères affichés', html.includes('8 caractères minimum'));
+    check('Réinit. jeton valide : compte masqué (pas l’adresse en clair)', !html.includes(address) && html.includes('•'));
+    check('Réinit. jeton valide : validité restante affichée', /Expire dans/.test(html));
+    check('Réinit. jeton valide : bouton désactivé tant que le mot de passe est vide', html.includes('disabled'));
   }
   {
     const { html } = await mount(React.createElement(Probe, { page: 'onboarding' }), 'Parcours d’accueil');

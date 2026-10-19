@@ -52,6 +52,17 @@ export interface TokenPayload {
   email: string;
   role: 'eleve' | 'admin';
   demo?: boolean;
+  /**
+   * Version du mot de passe au moment de l'émission (`tokenVersion` du compte).
+   *
+   * Sert à révoquer les sessions : dès que le mot de passe change, le compteur
+   * du compte est incrémenté et tout jeton portant une version différente est
+   * rejeté. Un compteur entier plutôt qu'un horodatage évite toute ambiguïté de
+   * comparaison — `iat` n'a qu'une résolution d'une seconde, ce qui laissait une
+   * fenêtre d'environ 1 s pendant laquelle les anciennes sessions survivaient.
+   * Absent des jetons émis avant cette fonctionnalité : lu comme 0.
+   */
+  pv?: number;
   iat: number;
   exp: number;
 }

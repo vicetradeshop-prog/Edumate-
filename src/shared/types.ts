@@ -672,11 +672,38 @@ export interface HealthResponse {
   ok: boolean;
   app: string;
   version: string;
+  env?: string;
   uptime: number;
   database: 'upstash' | 'file' | 'memory';
   databaseReady: boolean;
+  databaseLatencyMs?: number | null;
+  databaseOperations?: number;
+  databaseError?: string | null;
+  databaseNotice?: string | null;
+  catalogError?: string | null;
   ai: { provider: string; configured: boolean };
-  catalog: { subjects: number; topics: number; playable: number; questions: number };
+  /**
+   * État de l'envoi d'e-mails (mot de passe oublié).
+   * Compteurs AGRÉGÉS uniquement : aucun destinataire, aucune adresse d'élève.
+   */
+  mail?: {
+    provider: string;
+    configured: boolean;
+    from?: string | null;
+    sent?: number;
+    failed?: number;
+    lastSentAt?: string | null;
+    resetLinkTtlMinutes?: number;
+    resetPath?: string;
+  };
+  catalog: {
+    subjects: number;
+    levels?: number;
+    themes?: number;
+    topics: number;
+    playable: number;
+    questionPool?: number;
+  };
   time: string;
 }
 

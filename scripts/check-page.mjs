@@ -209,6 +209,10 @@ const PUBLIC_ROUTES = [
   { path: '/connexion', expect: 'Bon retour' },
   { path: '/inscription', expect: 'Bienvenue sur EduMate' },
   { path: '/bienvenue', expect: 'Bienvenue sur EduMate' },
+  // Mot de passe oublié : sans jeton dans l'URL, la page de réinitialisation
+  // affiche son état « lien manquant » — rendu déterministe, aucun appel API.
+  { path: '/mot-de-passe-oublie', expect: 'Mot de passe oublié' },
+  { path: '/reinitialiser', expect: 'Aucun lien de réinitialisation' },
 ];
 
 const PRIVATE_ROUTES = [

@@ -1,5 +1,10 @@
 # Dépendances
+# Les deux formes : `node_modules/` ne couvre qu'un vrai répertoire, alors que
+# `node_modules` couvre AUSSI un lien symbolique (git le voit comme un fichier).
+# Sans la seconde ligne, un dépôt de travail dont node_modules est un symlink
+# l'aurait committé — 200 Mo d'exécutables dans l'historique.
 node_modules/
+node_modules
 jspm_packages/
 
 # Build / cache

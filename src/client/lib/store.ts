@@ -37,6 +37,15 @@ interface AuthState {
   login: (email: string, password: string) => Promise<PublicUser>;
   loginDemo: () => Promise<PublicUser>;
   logout: () => Promise<void>;
+  /**
+   * Adopte une session que le serveur vient d'ouvrir sans identifiants.
+   *
+   * Utilisé par la réinitialisation de mot de passe : `POST /api/auth/reset`
+   * pose les cookies de session et renvoie le profil, il ne reste qu'à les
+   * recopier dans le magasin — sans quoi l'élève serait considéré comme
+   * anonyme jusqu'au prochain rechargement de page.
+   */
+  applySession: (user: PublicUser, csrfToken: string) => void;
   updateUser: (patch: Record<string, unknown>) => Promise<void>;
   updatePreferences: (patch: Partial<Preferences>) => Promise<void>;
 }
@@ -188,6 +197,12 @@ export const useAuth = create<AuthState>((set, get) => ({
     setCsrfToken('');
     set({ user: null, status: 'anonymous' });
     applyPreferencesToDom(null);
+  },
+
+  applySession: (user, csrfToken) => {
+    setCsrfToken(csrfToken);
+    set({ user, status: 'authenticated', waking: false });
+    applyPreferencesToDom(user);
   },
 
   updateUser: async (patch) => {

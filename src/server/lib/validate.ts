@@ -5,13 +5,16 @@
  * la couche HTTP traduit en réponse 400 compréhensible.
  */
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
+import { EMAIL_MAX_LENGTH, isValidEmailValue, normalizeEmailValue } from '../../shared/email.js';
+import { PASSWORD_MAX_LENGTH } from '../../shared/password.js';
 
 export const LIMITS = {
   firstName: 40,
   lastName: 40,
-  email: 160,
-  password: 128,
+  // Valeur partagée avec le client (src/shared/email.ts).
+  email: EMAIL_MAX_LENGTH,
+  // Valeur partagée avec le client : les deux builds refusent la même longueur.
+  password: PASSWORD_MAX_LENGTH,
   school: 120,
   tagline: 120,
   title: 140,
@@ -40,27 +43,31 @@ export function cleanText(value: unknown, maxLength: number): string {
     .slice(0, maxLength);
 }
 
+/**
+ * Adresse e-mail : règles définies UNE seule fois dans `src/shared/email.ts`,
+ * réexportées ici pour conserver l'API historique du serveur.
+ */
 export function normalizeEmail(email: string): string {
-  return String(email ?? '').trim().toLowerCase();
+  return normalizeEmailValue(email);
 }
 
 export function isValidEmail(value: string): boolean {
-  return EMAIL_RE.test(normalizeEmail(value));
+  return isValidEmailValue(value);
 }
 
-export function passwordIssues(value: string): string[] {
-  const issues: string[] = [];
-  if (typeof value !== 'string' || value.length < 8) issues.push('8 caractères minimum');
-  else {
-    if (!/[a-zA-Z]/.test(value)) issues.push('au moins une lettre');
-    if (!/\d/.test(value)) issues.push('au moins un chiffre');
-  }
-  return issues;
-}
-
-export function isStrongPassword(value: unknown): boolean {
-  return typeof value === 'string' && value.length <= LIMITS.password && passwordIssues(value).length === 0;
-}
+/**
+ * Politique de mot de passe : définie UNE seule fois dans `src/shared/password.ts`
+ * et réexportée ici, pour que le serveur et le client appliquent exactement les
+ * mêmes règles (voir le commentaire du module partagé).
+ */
+export {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  isStrongPassword,
+  passwordChecks,
+  passwordIssues,
+  passwordStrength,
+} from '../../shared/password.js';
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const TIME_RE = /^\d{2}:\d{2}$/;

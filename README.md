@@ -27,19 +27,25 @@ Aide aux devoirs assistée · **1 316 sujets de quiz** · progression détaillé
 5. [Variables d'environnement](#-variables-denvironnement)
 6. [Configurer Upstash (base de données)](#-configurer-upstash-base-de-données)
 7. [Configurer l'intelligence artificielle](#-configurer-lintelligence-artificielle)
-8. [Build et production](#-build-et-production)
-9. [Déploiement GitHub → Render](#-déploiement-github--render) — guide pas à pas complet dans **[`docs/PUBLIER.md`](docs/PUBLIER.md)**
-10. [Le catalogue de quiz : comment il fonctionne](#-le-catalogue-de-quiz--comment-il-fonctionne)
-11. [Ajouter des quiz, des matières, des questions](#-ajouter-des-quiz-des-matières-des-questions)
-12. [Comptes, rôles et administration](#-comptes-rôles-et-administration)
-13. [Sécurité](#-sécurité)
-14. [Tests](#-tests)
-15. [Performance et accessibilité](#-performance-et-accessibilité)
-16. [Commandes disponibles](#-commandes-disponibles)
-17. [Dépannage](#-dépannage)
-18. [Feuille de route](#-feuille-de-route)
-19. [Licence](#-licence)
+8. [Configurer les e-mails (mot de passe oublié)](#-configurer-les-e-mails-mot-de-passe-oublié) — guide complet dans **[`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md)**
+9. [Build et production](#-build-et-production)
+10. [Déploiement GitHub → Render](#-déploiement-github--render) — guide pas à pas complet dans **[`docs/PUBLIER.md`](docs/PUBLIER.md)**
+11. [Le catalogue de quiz : comment il fonctionne](#-le-catalogue-de-quiz--comment-il-fonctionne)
+12. [Ajouter des quiz, des matières, des questions](#-ajouter-des-quiz-des-matières-des-questions)
+13. [Comptes, rôles et administration](#-comptes-rôles-et-administration)
+14. [Sécurité](#-sécurité)
+15. [Tests](#-tests)
+16. [Performance et accessibilité](#-performance-et-accessibilité)
+17. [Commandes disponibles](#-commandes-disponibles)
+18. [Dépannage](#-dépannage)
+19. [Feuille de route](#-feuille-de-route)
+20. [Licence](#-licence)
 
+> 🔑 **v3.2 — Mot de passe oublié** : réinitialisation par e-mail (Brevo, Resend,
+> SendGrid, Mailgun, Postmark, SMTP), lien à usage unique, révocation de toutes
+> les sessions, récupération d'urgence d'un compte administrateur depuis Render.
+> Guide complet : **[`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md)**.
+>
 > 🧊 **Refonte visuelle « Liquid Glass » (v3.0)** : verre translucide, fond 3D
 > vivant, thème sombre par défaut — documentation complète de livraison dans
 > **[`docs/REFONTE-V3.md`](docs/REFONTE-V3.md)**,
@@ -130,6 +136,9 @@ Concrètement, sur l'hébergement gratuit le conteneur s'endort après ~15 min d
 ### 🎨 Expérience
 Onboarding animé en **8 à 9 étapes** (une seule question à la fois, progression visuelle, retour arrière, validation immédiate, autocomplétion des établissements via l'open data de l'Éducation nationale), thème clair/sombre/système, 10 couleurs d'accent, densité confort/compacte, animations désactivables, transitions de pages, micro-interactions, notifications toast, responsive desktop/tablette/mobile.
 
+### 🔐 Compte et récupération
+**Mot de passe oublié** en trois écrans animés : demande du lien, e-mail de réinitialisation (Brevo, Resend, SendGrid, Mailgun, Postmark ou SMTP), nouveau mot de passe guidé par une **jauge de robustesse** qui coche les critères au fur et à mesure. Lien à usage unique valable 30 minutes, **toutes les autres sessions fermées** au moment du changement, e-mail de confirmation, et connexion automatique à la fin. Côté serveur : empreinte SHA-256 seule en base, réponse identique que le compte existe ou non (aucune énumération possible), 5 demandes par heure et par adresse. Un compte administrateur bloqué se récupère en cinq minutes depuis Render, **même sans e-mails configurés** — voir [`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md).
+
 ---
 
 ## 🧱 Choix techniques
@@ -175,11 +184,14 @@ EDUMATE (1 dépôt, 1 service Render)
 │   │   ├── main.tsx             bootstrap React + styles
 │   │   ├── App.tsx              routes et garde-fous
 │   │   ├── components/
-│   │   │   ├── layout/          Sidebar, AppShell, Topbar, recherche globale
-│   │   │   ├── ui/              Button, Card, Field, Modal, Toasts, Badge, Feedback
+│   │   │   ├── layout/          Sidebar, AppShell, Topbar, recherche globale,
+│   │   │   │                    AuthAside (colonne commune des écrans de connexion)
+│   │   │   ├── ui/              Button, Card, Field, Modal, Toasts, Badge, Feedback,
+│   │   │   │                    PasswordStrength, AnimatedBadge, Confetti
 │   │   │   ├── quiz/            TopicCard
 │   │   │   └── tools/           ToolShell (mise en page des outils)
 │   │   ├── pages/               1 page = 1 écran (dashboard, quiz, assistant…)
+│   │   │   │                    ForgotPasswordPage, ResetPasswordPage
 │   │   │   └── tools/           horloge, minuteur, chrono, tableau, calendrier…
 │   │   ├── lib/                 api.ts, store.ts, richtext.ts, music.ts,
 │   │   │                        format.ts, hooks.ts, data.ts
@@ -188,10 +200,12 @@ EDUMATE (1 dépôt, 1 service Render)
 │   │
 │   ├── server/                  BACKEND (Express + API)
 │   │   ├── index.ts             création de l'app, démarrage, SPA fallback
-│   │   ├── routes/              auth, quiz, progress, organize, tutor,
-│   │   │                        services, admin
+│   │   ├── routes/              auth (dont /forgot, /reset), quiz, progress,
+│   │   │                        organize, tutor, services, admin
 │   │   ├── lib/                 config, storage (Upstash/fichier/mémoire),
-│   │   │                        store (données), auth (scrypt + JWT),
+│   │   │                        store (données, setUserPassword, tokenVersion),
+│   │   │                        auth (scrypt + JWT), passwordReset (jetons),
+│   │   │                        mailer (Brevo/Resend/SMTP…),
 │   │   │                        middleware (erreurs, CSRF, rate limit),
 │   │   │                        validation, validate, ai, catalog, languages
 │   │   └── content/             MOTEUR PÉDAGOGIQUE
@@ -207,7 +221,9 @@ EDUMATE (1 dépôt, 1 service Render)
 │   │       ├── families/        math.ts, physics.ts, languages.ts, knowledge.ts
 │   │       └── data/            french.ts, chemistry.ts, knowledge.ts, languages.ts
 │   │
-│   └── shared/types.ts          types partagés frontend ↔ backend
+│   └── shared/                  types.ts (types partagés frontend ↔ backend),
+│                                password.ts (politique de mot de passe),
+│                                email.ts (validation + masquage d'adresse)
 │
 ├── data/
 │   ├── quiz/*.json              banques de questions rédigées (18 banques)
@@ -218,8 +234,8 @@ EDUMATE (1 dépôt, 1 service Render)
 │   ├── build-catalog.ts         génère data/generated/catalog.json
 │   ├── check-content.ts         contrôle qualité de TOUS les sujets
 │   ├── unit-test.ts             tests unitaires des modules critiques
-│   ├── smoke-test.mjs           test de bout en bout de l'API (81 contrôles, Node)
-│   ├── render-test.mjs          test de rendu de toutes les pages (40 contrôles)
+│   ├── smoke-test.mjs           test de bout en bout de l'API (189 contrôles, Node)
+│   ├── render-test.mjs          test de rendu de toutes les pages (83 contrôles)
 │   ├── dev.mjs                  lanceur API + Vite (sans dépendance externe)
 │   ├── make-zip.mjs             archive de livraison (ZIP, Node)
 │   ├── make-icons.mjs           génère les icônes PNG (Node)
@@ -330,7 +346,7 @@ Copie `.env.example` en `.env` pour le développement ; sur Render, renseigne-le
 |---|---|---|---|
 | `PORT` | non (Render la fournit) | `8787` | Port HTTP |
 | `NODE_ENV` | non | `development` | `production` active les cookies `Secure` et masque les traces |
-| `APP_URL` | non | — | URL publique (cookies cross-domaine éventuels) |
+| `APP_URL` | **recommandé** | *(déduit de `RENDER_EXTERNAL_URL`)* | URL publique : base des **liens envoyés par e-mail** et des cookies cross-domaine. Sans elle, un lien de réinitialisation peut pointer vers `localhost` |
 | `SESSION_SECRET` | **oui en production** | valeur de dev | Secret de signature des jetons de session |
 | `SESSION_MAX_AGE` | non | `7d` | Durée de session (`7d`, `12h`, `30m`…) |
 | `UPSTASH_REDIS_REST_URL` | recommandé | — | URL REST de la base Upstash |
@@ -352,6 +368,30 @@ Copie `.env.example` en `.env` pour le développement ; sur Render, renseigne-le
 | `ADMIN_EMAIL` | non | — | Adresses administrateurs, séparées par des **virgules** : chacune est promue (créée si `ADMIN_PASSWORD` est fourni) |
 | `ADMIN_PASSWORD` | non | — | Mot de passe du compte administrateur créé au démarrage (avec `ADMIN_EMAIL`) |
 | `ADMIN_FIRST_NAME` | non | `Admin` | Prénom du compte administrateur créé au démarrage |
+| | | | |
+| **E-mails — mot de passe oublié** ([guide](docs/MOT-DE-PASSE-OUBLIE.md)) | | | |
+| `MAIL_PROVIDER` | non | déduit de la clé | `brevo`, `resend`, `sendgrid`, `mailgun`, `postmark`, `smtp`, `log`, `none` |
+| `MAIL_API_KEY` | non | *(vide)* | Clé du fournisseur. **Uniquement en variable d'environnement**, comme `AI_API_KEY` |
+| `MAIL_FROM` | recommandé | `EduMate <no-reply@edumate.local>` | Expéditeur ; le domaine doit être **vérifié** chez le fournisseur (DKIM/SPF) |
+| `MAIL_FROM_NAME` | non | `EduMate` | Nom de l'expéditeur |
+| `MAIL_REPLY_TO` | non | — | Adresse de réponse |
+| `MAIL_TIMEOUT_MS` | non | `10000` | Délai maximal d'un envoi (un e-mail lent ne bloque jamais la requête) |
+| `MAILGUN_DOMAIN` | avec Mailgun | — | Domaine déclaré dans la console Mailgun |
+| `MAILGUN_BASE_URL` | non | `https://api.mailgun.net` | Région UE : `https://api.eu.mailgun.net` |
+| `SMTP_HOST` / `SMTP_PORT` | avec `smtp` | — / `587` | Serveur SMTP (Gmail `smtp.gmail.com:465`, OVH `ssl0.ovh.net:465`) |
+| `SMTP_SECURE` | non | déduite du port | `true` = port 465 ; `false` = STARTTLS (port 587) |
+| `SMTP_USER` / `SMTP_PASS` | avec `smtp` | — | Identifiants ; Gmail exige un **mot de passe d'application** |
+| `PASSWORD_RESET_TTL_MINUTES` | non | `30` | Validité du lien (bornée entre 5 et 1440) |
+| `PASSWORD_RESET_PATH` | non | `/reinitialiser` | Chemin de la page « nouveau mot de passe » |
+| `PASSWORD_RESET_COOLDOWN_SECONDS` | non | `60` | Délai minimal entre deux demandes pour une même adresse |
+| `PASSWORD_RESET_MAX_PER_HOUR` | non | `5` | Plafond horaire par adresse (anti-harcèlement) |
+| `EXPOSE_RESET_LINK` | non | `false` (**forcé en production**) | Renvoie le lien dans la réponse HTTP — développement uniquement |
+| | | | |
+| **Dépannage d'urgence** | | | |
+| `RECOVERY_EMAIL` | non | — | Compte dont le mot de passe est remplacé **au démarrage** |
+| `RECOVERY_PASSWORD` | non | — | Nouveau mot de passe (politique habituelle : 8 car., lettre, chiffre) |
+| `RECOVERY_MAKE_ADMIN` | non | `false` | Redonne le rôle administrateur à ce compte |
+| | | | 🔴 **À supprimer de Render juste après usage** : tant qu'elles existent, ce mot de passe est réappliqué à chaque démarrage |
 
 **Générer un `SESSION_SECRET` robuste :**
 ```bash
@@ -437,6 +477,69 @@ AI_MODEL=mon-modele
 EduMate utilise le **tuteur intégré** : il détecte la matière, fournit les rappels de cours exacts, une méthode pas à pas, les pièges classiques et des exercices générés par le moteur de quiz. La réponse indique clairement le mode hors-ligne.
 
 **Changer de fournisseur ne demande aucune modification de code** : une seule variable. Le point d'entrée unique est `src/server/lib/ai.ts` (`TutorProvider`), et un **repli automatique** sur le tuteur intégré se déclenche si l'API échoue (quota, réseau, modèle indisponible).
+
+---
+
+## 📧 Configurer les e-mails (mot de passe oublié)
+
+Depuis la **v3.2**, la page de connexion propose **« Mot de passe oublié ? »**, avec réinitialisation par e-mail :
+
+```
+/connexion → /mot-de-passe-oublie → 📧 e-mail → /reinitialiser?token=… → ✅ connexion automatique
+```
+
+Guide complet (Brevo, Resend, SMTP Gmail/OVH, dépannage, fonctionnement interne) : **[`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md)**.
+
+### Trois variables suffisent
+
+```bash
+MAIL_PROVIDER=brevo                                  # ou resend, sendgrid, mailgun, postmark, smtp
+MAIL_API_KEY=xkeysib-xxxxxxxxxxxxxxxxxxxx            # 🔐 jamais dans le dépôt
+MAIL_FROM="EduMate <no-reply@ton-domaine.fr>"        # domaine à valider chez le fournisseur
+```
+
+Les API de **Brevo**, **Resend**, **SendGrid**, **Mailgun** et **Postmark** sont appelées directement avec le `fetch` natif de Node 20 — **aucune dépendance ajoutée**. Seul le mode `smtp` charge `nodemailer` (import dynamique : jamais chargé autrement).
+
+| Fournisseur | Gratuit | Clé reconnaissable |
+|---|---|---|
+| **Brevo** (ex-Sendinblue) 🇫🇷 | 300 e-mails/jour | `xkeysib-…` |
+| **Resend** | 100 e-mails/jour | `re_…` |
+| **SendGrid** | 100 e-mails/jour | `SG.…` |
+| **Mailgun** | 100/jour (essai) | `key-…` + `MAILGUN_DOMAIN` |
+| **Postmark** | 100/mois | jeton serveur (UUID) |
+| **SMTP** (Gmail, OVH, Infomaniak…) | selon l'hébergeur | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` |
+
+`MAIL_PROVIDER` peut rester **vide** : le fournisseur est déduit du format de la clé, exactement comme pour l'assistant IA.
+
+### Sans aucune configuration, rien ne casse
+
+Aucun e-mail ne part, **mais le parcours reste fonctionnel** : le lien de réinitialisation est écrit dans les journaux du serveur (Render → onglet **Logs**), et l'API répond `200` comme si l'e-mail était parti. L'administrateur peut copier le lien et le transmettre lui-même. La ligne de démarrage et `/api/health` (`mail.configured: false`) le signalent explicitement.
+
+### 🔑 Récupérer un compte administrateur bloqué
+
+Mot de passe admin perdu **et** pas encore d'e-mails configurés ? Deux variables posées dans Render, un redéploiement, et c'est réglé — sans passer par la messagerie :
+
+```bash
+RECOVERY_EMAIL=admin@monlycee.fr
+RECOVERY_PASSWORD=NouveauMot2passe
+RECOVERY_MAKE_ADMIN=true          # facultatif
+```
+
+Au démarrage le serveur remplace le mot de passe, ferme toutes les sessions du compte et journalise l'opération.
+
+> 🔴 **Supprime ces deux variables juste après** t'être connecté : tant qu'elles existent, ce mot de passe est réappliqué à *chaque* démarrage.
+
+### Ce que le parcours garantit
+
+| Garantie | Comment |
+|---|---|
+| Lien à **usage unique** | effacé de la base dès qu'il a servi |
+| Validité **30 minutes** | `PASSWORD_RESET_TTL_MINUTES` (bornée 5–1440) |
+| **Jeton jamais stocké en clair** | seule son empreinte SHA-256 est écrite |
+| **Anti-énumération** | réponse identique que le compte existe ou non ; `EXPOSE_RESET_LINK` forcé à `false` en production |
+| **Anti-harcèlement** | 60 s entre deux demandes, 5 par heure et par adresse |
+| **Autres sessions fermées** | compteur `tokenVersion` recopié dans chaque JWT |
+| E-mail de **confirmation** | envoyé après chaque changement de mot de passe |
 
 ---
 
@@ -652,11 +755,14 @@ L'ajout/modification/suppression de quiz par l'interface d'administration est **
 |---|---|
 | Mots de passe | **scrypt** + sel 16 octets, comparaison `timingSafeEqual`, jamais renvoyés par l'API |
 | Vol de session | Cookie **httpOnly**, `SameSite=Lax`, `Secure` en production, JWT signé HS256 avec expiration |
+| Sessions survivantes | Compteur **`tokenVersion`** recopié dans chaque JWT (`pv`) : tout changement de mot de passe ferme **toutes** les autres sessions, sans lecture en base supplémentaire (cache par process) |
 | **CSRF** | Double soumission de cookie : jeton `edumate_csrf` + en-tête `X-CSRF-Token` exigé sur toute requête mutative authentifiée par cookie |
 | **XSS** | Tout contenu (IA, énoncés, saisies) est **échappé** avant rendu ; le Markdown est transformé maison, les liens `javascript:` sont refusés ; en-tête CSP strict |
 | Injection de données | Validation systématique côté serveur (type, longueur, format, énumérations) — jamais confiance au client |
 | En-têtes | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy` |
 | Brute force | Limitation de débit par IP (900 req/min global, 90 req/min sur l'authentification), réglable |
+| **Mot de passe oublié** | Jeton 256 bits, **empreinte SHA-256 seule** en base, usage unique, 30 min, un seul jeton actif par compte, réponse identique que le compte existe ou non (**anti-énumération**), 60 s entre deux demandes et 5/heure par adresse (**anti-harcèlement**) |
+| Récupération d'urgence | `RECOVERY_EMAIL`/`RECOVERY_PASSWORD` : appliqués au démarrage, journalisés, mot de passe conforme à la politique, aucun compte créé si l'adresse est inconnue |
 | Fuite de secrets | Secrets uniquement en variables d'environnement ; `.env` dans `.gitignore` ; `.env.example` sans valeur réelle |
 | Fuite de réponses | Les quiz sont corrigés **côté serveur** ; aucune bonne réponse n'est envoyée avant la correction |
 | Déni de service | Taille de corps de requête limitée (256 ko), timeout sur tous les appels externes, listes de données bornées |
@@ -669,18 +775,29 @@ L'ajout/modification/suppression de quiz par l'interface d'administration est **
 
 ```bash
 npm test               # unitaires + contenu + API (suite principale)
-npm run test:unit      # 32 tests unitaires (rendu riche, formatage, sécurité, moteur, conjugaison, dérivation…)
+npm run test:unit      # 100 tests unitaires (rendu riche, formatage, sécurité, jetons, moteur, conjugaison…)
 npm run test:content   # contrôle des 1 316 sujets et de leurs 6 580 questions générées
-npm run test:api       # 98 contrôles de bout en bout sur l'API (démarre un serveur réel)
-npm run test:api:built # les mêmes 98 contrôles sur le build de production
+npm run test:api       # 189 contrôles de bout en bout sur l'API (démarre un serveur réel)
+npm run test:api:built # les mêmes 189 contrôles sur le build de production
 npm run test:db       # ⭐ base de données : 21 + 3 contrôles Upstash, puis 45 × 3 parcours en bout en bout
 npm run test:storage  # couche Upstash contre un faux serveur fidèle au contrat REST réel
 npm run test:e2e-db   # API réelle démarrée sur une vraie base Upstash (simulée)
 npm run test:bundle    # 10 contrôles du bundle de production (ordre d'évaluation des modules, poids)
-npm run test:render    # 50 contrôles de rendu : chaque page montée dans un DOM simulé (jsdom)
+npm run test:render    # 83 contrôles de rendu : chaque page montée dans un DOM simulé (jsdom)
+npm run test:routes    # 7 routes publiques rendues sans erreur ni page blanche
 npm run test:all       # TOUT : unitaires + contenu + API + API build + base + bundle + rendu
 npm run typecheck      # vérification TypeScript stricte de tout le projet
 ```
+
+### Ce que couvre le test « mot de passe oublié »
+
+Trois suites se partagent le parcours, pour un total de **65 contrôles** :
+
+| Suite | Contrôles | Ce qui est vérifié |
+|---|---|---|
+| `test:unit` | 11 | politique de mot de passe identique serveur/client, jauge (note 0→4), masquage d'adresse, jeton 256 bits + empreinte SHA-256, URL du lien, révocation par `tokenVersion`, échappement HTML du gabarit d'e-mail |
+| `test:api` | 34 | les 3 routes en conditions réelles : e-mail invalide → 400, adresse inconnue → **réponse strictement identique** (aucun `sent`, aucun `devLink`), jeton valide/expiré/forgé/absent, **usage unique**, mot de passe faible refusé sans consommer le jeton, session d'avant révoquée → 401, ancien mot de passe refusé, nouveau accepté, **429 + `Retry-After`**, bloc `mail` de `/api/health` |
+| `test:render` | 20 | les deux pages montées dans jsdom, dont **un parcours avec un vrai jeton** obtenu depuis l'API : formulaire, deux champs mot de passe, jauge, critères, adresse masquée, validité restante, bouton désactivé |
 
 ### Ce que couvre le test de rendu (`test:render`)
 Il démarre l'API réelle, simule une session (compte de démonstration), puis monte **chaque page** de l'application dans un DOM simulé et vérifie son contenu : accueil, connexion, parcours d'accueil, tableau de bord, catalogue de quiz, détail d'un sujet, résultat animé (avec rendu KaTeX), assistant IA, progression, index des outils, devoirs, profil, paramètres, et les 7 outils. Il échoue au moindre incident React non maîtrisé — c'est lui qui a permis de détecter une boucle de rendu infinie (sélecteur Zustand non mémorisé) et une imbrication HTML invalide avant livraison.
@@ -784,6 +901,16 @@ Chaque fonctionnalité gère : réseau coupé, serveur indisponible, session exp
 | `StorageUnavailableError: Upstash HTTP 400 {"error":"ERR unsupported arg type: \"[\""}` | Requêtes groupées envoyées sur l'endpoint mono-commande : Upstash attend `[[cmd,...]]` **uniquement** sur `/pipeline` | Corrigé dans `storage.ts`. Contrôle permanent : `npm run test:db` |
 | `Upstash HTTP 404` ou `invalid JSON body` | `UPSTASH_REDIS_REST_URL` copiée avec un suffixe (`/pipeline`) ou des espaces | Corrigé automatiquement : l'URL est normalisée au démarrage (un avertissement l'indique dans les journaux). Format attendu : `https://xxxxxxxx.upstash.io` |
 | Page `/admin` : « Cette section est réservée aux administrateurs » | Aucun compte administrateur en base | Le **premier compte créé** est administrateur ; ou ajoute ton adresse dans `ADMIN_EMAIL` puis reconnecte-toi |
+| « Mot de passe oublié » : l'écran de confirmation s'affiche mais aucun e-mail n'arrive | Aucun fournisseur configuré (`mail.configured: false` dans `/api/health`) | Le lien est dans Render → **Logs** : copie-le et transmets-le. Pour un envoi réel, voir [`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md) |
+| `mail.failed` augmente dans `/api/health` | Le fournisseur refuse les messages (clé, domaine expéditeur non vérifié) | Lis l'erreur dans les Logs ; vérifie que `MAIL_FROM` appartient à un domaine validé (DKIM/SPF) |
+| Le lien reçu pointe vers `localhost` | `APP_URL` absent de Render | Ajoute `APP_URL=https://ton-service.onrender.com` puis redéploie |
+| Lien reçu : « Ce lien a expiré » sur une instance fraîche | Stockage mémoire : les jetons ne survivent pas au redémarrage | Configure Upstash (`FALLBACK_STORAGE=memory` est un repli de développement) |
+| « Trop de demandes pour cette adresse » | Anti-harcèlement : 60 s entre deux demandes, 5/heure | Attends la fin du compte à rebours affiché à l'écran ; réglable via `PASSWORD_RESET_COOLDOWN_SECONDS` |
+| **Mot de passe administrateur perdu** (e-mails non configurés) | Aucune voie de réinitialisation sans messagerie | `RECOVERY_EMAIL` + `RECOVERY_PASSWORD` dans Render → redéployer → se connecter → **supprimer les variables**. Voir [`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md#2-urgence-récupérer-un-compte-administrateur) |
+| SMTP : `Invalid login` / `535` | Mot de passe du compte utilisé au lieu d'un mot de passe d'application | Gmail : <https://myaccount.google.com/apppasswords> (validation en deux étapes requise) |
+| SMTP : `Connection timeout` | Couple port / `SMTP_SECURE` incohérent | `465` → `SMTP_SECURE=true` ; `587` → `false` (STARTTLS) |
+| `npm run test:sw` : 10 échecs (`coquille pré-cachée — 0 entrées`, `page de secours`…) | Le test ouvrait le cache `edumate-shell-v2` **codé en dur**, alors que `sw.js` en est à `v8` : il inspectait un cache vide | Corrigé : le nom est désormais **déduit de `sw.js`** (`const VERSION`), deux garde-fous vérifient l'extraction. 42/52 → **54/54** |
+| `npm run test:lessons-ui` : 3 échecs (`confettis présents`, `le conteneur de la liste`, `les 7 suggestions`) | Assertions périmées : `.revision-list` a été remplacé par `.revision-viewport` (carrousel v3.1) et les confettis sont réservés à ≥ 80 % (le scénario fait 2/3). Pire, `querySelectorAll` sur une classe inexistante renvoyait une liste vide et `[].every()` valait `true` : **deux contrôles passaient à vide** | Corrigé : sélecteurs à jour, seuil de confettis vérifié **dans les deux sens** (nouvelle section 7 bis). 53/56 → **72/72** |
 | Quota Upstash épuisé (10 000 commandes/jour) | Trop d'allers-retours HTTP | Déjà groupé (`getMany` en pipeline, `DEL` multi-clés, suppression et export en requêtes groupées) ; vérifie avec `npm run test:e2e-db` qui affiche le ratio requêtes/commandes |
 
 ### 🔐 Procédure complète : une clé d'API est partie dans le dépôt
@@ -829,7 +956,9 @@ Déjà préparé dans le code (points d'extension identifiés) :
 - **Export PDF des fiches de révision** : les données de progression sont déjà structurées.
 - **Ajout de matières** (latin, allemand, HGGSP, LLCE…) : une entrée dans `meta.ts` + des sujets.
 - ~~**PWA installable hors-ligne**~~ : ✅ **fait** — `public/sw.js` (coquille en cache, démarrage instantané) + maintien du serveur éveillé + application installable.
+- ~~**Mot de passe oublié / réinitialisation par e-mail**~~ : ✅ **fait (v3.2)** — lien à usage unique, anti-énumération, révocation de toutes les sessions, récupération d'urgence d'un compte administrateur. Voir [`docs/MOT-DE-PASSE-OUBLIE.md`](docs/MOT-DE-PASSE-OUBLIE.md).
 - **Synchronisation multi-appareils du tableau interactif** et sauvegarde des dessins.
+- **Gestion des appareils connectés** : la révocation par `tokenVersion` est en place ; il ne manque qu'un écran listant les sessions actives.
 
 ---
 

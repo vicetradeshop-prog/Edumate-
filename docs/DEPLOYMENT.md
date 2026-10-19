@@ -70,7 +70,7 @@ git push -u main origin   # ou : git push -u origin main
 1. Render → **New +** → **Blueprint**.
 2. Autorise Render à accéder à ton dépôt GitHub.
 3. Render détecte `render.yaml` et propose le service **edumate**.
-4. Renseigne les variables demandées (`sync: false`) : `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `AI_PROVIDER`, `AI_API_KEY`, `APP_URL`.
+4. Renseigne les variables demandées (`sync: false`) : `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `AI_PROVIDER`, `AI_API_KEY`, `APP_URL`, puis `MAIL_PROVIDER`, `MAIL_API_KEY`, `MAIL_FROM` pour le « Mot de passe oublié ».
 5. **Apply** → Render construit et déploie.
 
 `SESSION_SECRET` est généré automatiquement par Render (`generateValue: true`).
@@ -115,8 +115,16 @@ Onglet **Environment** → *Add Environment Variable* :
 | `FALLBACK_STORAGE` | `memory` | comportement si Upstash est injoignable |
 | `ADMIN_EMAIL` | `toi@mail.fr,autre@mail.fr` | *(optionnel)* adresses promues administrateur ; le **premier compte créé** l'est de toute façon |
 | `ADMIN_PASSWORD` | mot de passe robuste | *(optionnel)* avec `ADMIN_EMAIL` |
+| `MAIL_PROVIDER` | `brevo` / `resend` / `sendgrid` / `mailgun` / `postmark` / `smtp` / `log` / `none` | *(recommandé)* « Mot de passe oublié » — vide = déduit du format de la clé |
+| `MAIL_API_KEY` | `xkeysib-…` / `re_…` / `SG.…` — **uniquement ici** | *(recommandé)* avec `MAIL_PROVIDER` |
+| `MAIL_FROM` | `EduMate <no-reply@ton-domaine.fr>` | *(recommandé)* domaine à valider chez le fournisseur (DKIM/SPF) |
+| `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | `smtp.gmail.com` `465` `true` … | *(optionnel)* uniquement si `MAIL_PROVIDER=smtp` |
+| `PASSWORD_RESET_TTL_MINUTES` | `30` | *(optionnel)* validité du lien, bornée 5–1440 |
+| `RECOVERY_EMAIL` `RECOVERY_PASSWORD` | compte à dépanner + nouveau mot de passe | 🔴 *(urgence)* **à supprimer après usage** : réappliqué à chaque démarrage |
 
 `PORT` est fournie automatiquement par Render : **ne pas la fixer** (l'application lit `process.env.PORT`).
+
+> 📧 **E-mails** : `APP_URL` devient **obligatoire** dès qu'un fournisseur d'e-mails est configuré — c'est la base du lien de réinitialisation. Sans aucun fournisseur, l'application tourne quand même : le lien est écrit dans les **Logs** et `/api/health` affiche `mail.configured: false`. Guide complet : [`MOT-DE-PASSE-OUBLIE.md`](MOT-DE-PASSE-OUBLIE.md).
 
 ---
 

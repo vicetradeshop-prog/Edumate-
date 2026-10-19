@@ -33,6 +33,12 @@ export default defineConfig({
         'express',
         'cookie-parser',
         'compression',
+        /*
+         * `nodemailer` n'est utilisé QUE par le mode MAIL_PROVIDER=smtp et est
+         * importé dynamiquement : il doit rester externe pour ne pas être
+         * inliné (ni chargé) quand l'envoi passe par une API HTTP.
+         */
+        'nodemailer',
         /^node:/,
       ],
       output: { inlineDynamicImports: true },

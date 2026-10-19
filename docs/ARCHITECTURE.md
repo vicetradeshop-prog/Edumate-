@@ -46,6 +46,9 @@ Document destiné à quiconque reprend le projet : où modifier quoi, et pourquo
 | Créer une **route API** | `src/server/routes/*.ts` + montage dans `src/server/index.ts` |
 | Modifier le **modèle de données** | `src/shared/types.ts` + `src/server/lib/store.ts` |
 | Changer de **fournisseur d'IA** | `src/server/lib/ai.ts` (ou juste `AI_PROVIDER`) |
+| Ajouter un **fournisseur d'e-mails** | `src/server/lib/mailer.ts` (un `case` dans `sendMail`) |
+| Modifier la **politique de mot de passe** | `src/shared/password.ts` (serveur **et** client d'un coup) |
+| Changer le **cycle de vie des jetons de reset** | `src/server/lib/passwordReset.ts` |
 | Modifier le **chargement du `.env`** | `src/server/lib/env.ts` |
 | Changer de **base de données** | `src/server/lib/storage.ts` (implémenter `Storage`) |
 | Ajouter une **page** | `src/client/pages/` + route dans `src/client/App.tsx` |

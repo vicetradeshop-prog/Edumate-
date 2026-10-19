@@ -94,7 +94,9 @@ class Client {
     if (!response.ok && !allowError) {
       throw new Error(`${method} ${urlPath} → HTTP ${response.status} : ${text.slice(0, 300)}`);
     }
-    return { status: response.status, body: payload, text };
+    // En-têtes normalisés en objet simple : `Retry-After` (limitation de débit)
+    // et `Cache-Control` (contrôles PWA) sont vérifiés par les tests.
+    return { status: response.status, body: payload, text, headers: Object.fromEntries(response.headers.entries()) };
   }
 
   get(urlPath, options) {
@@ -155,6 +157,10 @@ async function runTests() {
   check('tous les sujets jouables', health.body.catalog.playable === health.body.catalog.topics);
   check('base de données signalée', ['memory', 'file', 'upstash'].includes(health.body.database), health.body.database);
   check('statut IA renseigné', Boolean(health.body.ai?.provider));
+  check('statut e-mail renseigné', typeof health.body.mail?.configured === 'boolean' && Boolean(health.body.mail?.provider), JSON.stringify(health.body.mail));
+  check('e-mail : compteurs agrégés (aucun destinataire exposé)', Number.isInteger(health.body.mail?.sent) && Number.isInteger(health.body.mail?.failed));
+  check('e-mail : détail de la dernière erreur non public', health.body.mail?.lastError === undefined);
+  check('e-mail : durée de vie du lien annoncée', Number(health.body.mail?.resetLinkTtlMinutes) >= 5, String(health.body.mail?.resetLinkTtlMinutes));
 
   console.log('\n── Catalogue & navigation');
   const catalog = await anon.get('/api/catalog');
@@ -541,6 +547,80 @@ async function runTests() {
   check('Changement de mot de passe', (await login.post('/api/auth/me/password', { currentPassword: 'motdepasse123', newPassword: 'nouveaumdp123' }, { allowError: true })).status === 200);
   const relogin = new Client();
   check('Connexion avec le nouveau mot de passe', (await relogin.post('/api/auth/login', { email, password: 'nouveaumdp123' }, { allowError: true })).status === 200);
+
+  /* ---------------------------------------------------------------- */
+  /*  Mot de passe oublié (lien par e-mail)                            */
+  /* ---------------------------------------------------------------- */
+  console.log('\n── Mot de passe oublié');
+  const resetEmail = `oublie.${Date.now()}@edumate.test`;
+  const resetUser = new Client();
+  await resetUser.post('/api/auth/signup', { firstName: 'Nour', email: resetEmail, password: 'motdepasse123' });
+  // Session ouverte AVANT la réinitialisation : elle doit être révoquée après.
+  const beforeReset = await resetUser.get('/api/progress/stats', { allowError: true });
+  check('Session active avant la réinitialisation', beforeReset.status === 200, `HTTP ${beforeReset.status}`);
+
+  const invalidForgot = await anon.post('/api/auth/forgot', { email: 'pas-un-email' }, { allowError: true });
+  check('E-mail invalide → 400', invalidForgot.status === 400, `HTTP ${invalidForgot.status}`);
+
+  const unknownForgot = await anon.post('/api/auth/forgot', { email: `inconnu.${Date.now()}@edumate.test` }, { allowError: true });
+  check('Adresse sans compte → 200 (aucune fuite)', unknownForgot.status === 200 && unknownForgot.body?.ok === true, `HTTP ${unknownForgot.status}`);
+  check('Adresse sans compte : réponse identique (pas de lien)', unknownForgot.body?.devLink === undefined);
+  check('Adresse sans compte : aucun e-mail annoncé', !('sent' in (unknownForgot.body ?? {})) && !('accountFound' in (unknownForgot.body ?? {})));
+
+  const forgot = await anon.post('/api/auth/forgot', { email: resetEmail }, { allowError: true });
+  check('Demande de réinitialisation → 200', forgot.status === 200 && forgot.body?.ok === true, `HTTP ${forgot.status}`);
+  check('Durée de validité annoncée (30 min)', forgot.body?.expiresMinutes === 30, String(forgot.body?.expiresMinutes));
+  check('État du fournisseur d’e-mail renseigné', typeof forgot.body?.mailConfigured === 'boolean');
+  const devLink = forgot.body?.devLink;
+  check('Lien de test renvoyé hors production', typeof devLink === 'string' && devLink.includes('/reinitialiser?token='), String(devLink).slice(0, 80));
+  const resetToken = typeof devLink === 'string' ? new URL(devLink).searchParams.get('token') : null;
+  check('Jeton extrait du lien', typeof resetToken === 'string' && resetToken.length >= 40, String(resetToken).slice(0, 20));
+
+  const verifyOk = await anon.post('/api/auth/reset/verify', { token: resetToken }, { allowError: true });
+  check('Vérification du jeton → valide', verifyOk.status === 200 && verifyOk.body?.valid === true, JSON.stringify(verifyOk.body).slice(0, 120));
+  check('Indice d’e-mail masqué (jamais l’adresse complète)', typeof verifyOk.body?.emailHint === 'string' && verifyOk.body.emailHint.includes('•') && !verifyOk.body.emailHint.startsWith('oublie.'), String(verifyOk.body?.emailHint));
+  check('Temps restant cohérent', verifyOk.body?.remainingSeconds > 0 && verifyOk.body.remainingSeconds <= 30 * 60, String(verifyOk.body?.remainingSeconds));
+
+  const verifyBad = await anon.post('/api/auth/reset/verify', { token: 'jeton-inexistant' }, { allowError: true });
+  check('Jeton inconnu → invalide (200, pas de 500)', verifyBad.status === 200 && verifyBad.body?.valid === false && verifyBad.body?.reason === 'invalid');
+  const verifyEmpty = await anon.post('/api/auth/reset/verify', {}, { allowError: true });
+  check('Jeton absent → invalide', verifyEmpty.status === 200 && verifyEmpty.body?.valid === false);
+
+  const weakReset = await anon.post('/api/auth/reset', { token: resetToken, password: 'court' }, { allowError: true });
+  check('Nouveau mot de passe faible → 400', weakReset.status === 400, `HTTP ${weakReset.status}`);
+  const verifyAfterWeak = await anon.post('/api/auth/reset/verify', { token: resetToken }, { allowError: true });
+  check('Un échec de validation ne consomme pas le jeton', verifyAfterWeak.body?.valid === true);
+
+  const resetClient = new Client();
+  const done = await resetClient.post('/api/auth/reset', { token: resetToken, password: 'nouveaumdp456' }, { allowError: true });
+  check('Réinitialisation → 200', done.status === 200 && done.body?.ok === true, `HTTP ${done.status} ${JSON.stringify(done.body).slice(0, 160)}`);
+  check('Réinitialisation : session ouverte automatiquement', Boolean(done.body?.csrfToken) && resetClient.cookies.has('edumate_session'));
+  check('Réinitialisation : mot de passe jamais renvoyé', !JSON.stringify(done.body ?? {}).includes('nouveaumdp456') && !JSON.stringify(done.body ?? {}).includes('passwordHash'));
+  check('Réinitialisation : révocation annoncée', done.body?.sessionsRevoked === true);
+
+  const reuse = await anon.post('/api/auth/reset', { token: resetToken, password: 'encoreunmdp789' }, { allowError: true });
+  check('Jeton à usage unique → 400 au rejeu', reuse.status === 400, `HTTP ${reuse.status}`);
+
+  const stale = await resetUser.get('/api/progress/stats', { allowError: true });
+  check('Session ouverte AVANT le reset → révoquée (401)', stale.status === 401, `HTTP ${stale.status}`);
+
+  const oldPassword = await new Client().post('/api/auth/login', { email: resetEmail, password: 'motdepasse123' }, { allowError: true });
+  check('Ancien mot de passe refusé → 401', oldPassword.status === 401, `HTTP ${oldPassword.status}`);
+  const newPassword = await new Client().post('/api/auth/login', { email: resetEmail, password: 'nouveaumdp456' }, { allowError: true });
+  check('Nouveau mot de passe accepté → 200', newPassword.status === 200, `HTTP ${newPassword.status}`);
+
+  const expiredToken = 'x'.repeat(43);
+  const expiredReset = await anon.post('/api/auth/reset', { token: expiredToken, password: 'nouveaumdp456' }, { allowError: true });
+  check('Jeton forgé → 400 (message explicite)', expiredReset.status === 400 && /valide|expiré/i.test(String(expiredReset.body?.message ?? '')), String(expiredReset.body?.message).slice(0, 90));
+
+  const cooldown = await anon.post('/api/auth/forgot', { email: resetEmail }, { allowError: true });
+  check('Deuxième demande immédiate → 429 (anti-harcèlement)', cooldown.status === 429, `HTTP ${cooldown.status}`);
+  check('429 : en-tête Retry-After présent', Boolean(cooldown.headers?.['retry-after']) || /(\d+)\s*s|minute/i.test(String(cooldown.body?.message ?? '')));
+  check('429 : délai renvoyé dans le corps', Number(cooldown.body?.details?.retryAfterSec ?? 0) > 0, JSON.stringify(cooldown.body?.details));
+
+  // Nettoyage : le compte de test disparaît avec ses clés (jetons compris).
+  const cleanup = await resetClient.delete('/api/auth/me', { allowError: true });
+  check('Compte de test supprimé', cleanup.status === 200, `HTTP ${cleanup.status}`);
 
   console.log('\n── Données personnelles (export & suppression)');
   // La session précédente a été fermée par le test de déconnexion : on se

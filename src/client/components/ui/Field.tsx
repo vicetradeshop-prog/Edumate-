@@ -1,5 +1,5 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
-import { useId } from 'react';
+import { forwardRef, useId } from 'react';
 import { AlertCircle } from 'lucide-react';
 
 interface FieldProps {
@@ -42,7 +42,19 @@ interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode;
 }
 
-export function TextInput({ invalid, large, icon, className = '', ...rest }: TextInputProps) {
+/**
+ * Champ de saisie.
+ *
+ * `forwardRef` est indispensable : les écrans « mot de passe oublié » et
+ * « réinitialisation » doivent rendre la main au clavier (focus automatique sur
+ * le champ, puis retour au champ après un renvoi de lien). Sans ref, un
+ * composant fonctionnel ignore silencieusement l'attribut et React affiche un
+ * avertissement — le focus ne se posait donc jamais.
+ */
+export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function TextInput(
+  { invalid, large, icon, className = '', ...rest },
+  ref,
+) {
   const classes = ['input', invalid ? 'input--error' : '', large ? 'input--lg' : '', className].filter(Boolean).join(' ');
   if (icon) {
     return (
@@ -50,12 +62,12 @@ export function TextInput({ invalid, large, icon, className = '', ...rest }: Tex
         <span className="input-group__icon" aria-hidden="true">
           {icon}
         </span>
-        <input className={classes} aria-invalid={invalid || undefined} {...rest} />
+        <input ref={ref} className={classes} aria-invalid={invalid || undefined} {...rest} />
       </span>
     );
   }
-  return <input className={classes} aria-invalid={invalid || undefined} {...rest} />;
-}
+  return <input ref={ref} className={classes} aria-invalid={invalid || undefined} {...rest} />;
+});
 
 export function TextArea({ invalid, className = '', ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }) {
   const classes = ['textarea', invalid ? 'input--error' : '', className].filter(Boolean).join(' ');

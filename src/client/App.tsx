@@ -16,6 +16,14 @@ import { useAuth } from './lib/store.js';
 import LandingPage from './pages/LandingPage.js';
 import AuthPage from './pages/AuthPage.js';
 import OnboardingPage from './pages/OnboardingPage.js';
+/*
+ * Mot de passe oublié et réinitialisation : chargées avec le premier écran.
+ * Un élève bloqué sur la page de connexion est précisément dans le cas où un
+ * chunk paresseux supplémentaire (donc un aller-retour réseau de plus) serait
+ * le plus malvenu — et le serveur peut être en train de se réveiller.
+ */
+import ForgotPasswordPage from './pages/ForgotPasswordPage.js';
+import ResetPasswordPage from './pages/ResetPasswordPage.js';
 
 /* Pages de l'application : chargées à la demande pour alléger le démarrage */
 const DashboardPage = lazy(() => import('./pages/DashboardPage.js'));
@@ -135,6 +143,17 @@ export default function App() {
           */}
           <Route path="/inscription" element={<OnboardingPage />} />
           <Route path="/bienvenue" element={<OnboardingPage />} />
+          {/*
+            Mot de passe oublié : demande du lien, puis choix du nouveau mot de
+            passe (cible du lien reçu par e-mail).
+
+            Volontairement HORS de `GuestOnly` : la réinitialisation ouvre elle-
+            même une session côté serveur, et un garde-route la redirigerait
+            aussitôt — l'écran de confirmation (et la connexion automatique)
+            n'auraient jamais le temps de s'afficher.
+          */}
+          <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
+          <Route path="/reinitialiser" element={<ResetPasswordPage />} />
 
           {/* ------------------------------------------- Application ---- */}
           <Route

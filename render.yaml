@@ -67,9 +67,43 @@ services:
       # --- À saisir dans l'onglet Environment après création du service ---
       # UPSTASH_REDIS_REST_URL   = https://xxxxxxxx.upstash.io
       # UPSTASH_REDIS_REST_TOKEN = AXxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-      # APP_URL                  = https://edumate-w87j.onrender.com
+      # APP_URL                  = https://edumateapp.onrender.com
+      #                            ⚠️ INDISPENSABLE aux e-mails : c'est la base
+      #                            du lien « mot de passe oublié ». Sans elle,
+      #                            Render fournit RENDER_EXTERNAL_URL en repli.
       # ADMIN_EMAIL              = ton@email.fr   (facultatif : le 1er compte
       #                             créé devient administrateur de toute façon)
+      #
+      # --- « Mot de passe oublié » : envoi des e-mails (recommandé) ---------
+      # MAIL_PROVIDER            = brevo   (ou resend | sendgrid | mailgun |
+      #                             postmark | smtp)
+      # MAIL_API_KEY             = xkeysib-xxxxxx
+      #   🔐 LA CLÉ SE SAISIT ICI, JAMAIS DANS LE CODE (mêmes règles que
+      #      AI_API_KEY : bloquée au push par GitHub, compromise à vie sinon).
+      # MAIL_FROM                = EduMate <no-reply@ton-domaine.fr>
+      #   Le domaine DOIT être vérifié chez le fournisseur, sinon les messages
+      #   partent en spam ou sont refusés.
+      # MAIL_REPLY_TO            = ton@email.fr   (facultatif)
+      #
+      #   Variante SMTP (Gmail / OVH / Infomaniak), sans MAIL_API_KEY :
+      #     MAIL_PROVIDER = smtp
+      #     SMTP_HOST     = smtp.gmail.com
+      #     SMTP_PORT     = 465
+      #     SMTP_SECURE   = true
+      #     SMTP_USER     = tonadresse@gmail.com
+      #     SMTP_PASS     = mot de passe d'APPLICATION (pas celui du compte)
+      #
+      #   Sans rien configurer, l'application tourne quand même : le lien de
+      #   réinitialisation est écrit dans Render → Logs, et /api/health affiche
+      #   mail.configured = false.
+      #
+      # --- Récupérer un compte bloqué (mot de passe administrateur perdu) ---
+      # Poser ces DEUX variables, redéployer, se connecter, puis les SUPPRIMER :
+      #   RECOVERY_EMAIL       = admin@ton-email.fr
+      #   RECOVERY_PASSWORD    = NouveauMot2passe
+      #   RECOVERY_MAKE_ADMIN  = true        (facultatif)
+      # 🔴 Tant qu'elles sont présentes, ce mot de passe est réappliqué à chaque
+      #    démarrage. Guide complet : docs/MOT-DE-PASSE-OUBLIE.md
       #
       # --- Assistant IA (facultatif mais recommandé) -----------------------
       # AI_PROVIDER              = groq   (ou openai | mistral | xai)

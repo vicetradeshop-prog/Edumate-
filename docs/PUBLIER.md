@@ -158,7 +158,7 @@ Service → onglet **Environment** → *Add Environment Variable* (une par ligne
 | `UPSTASH_REDIS_REST_URL` | `https://xxxxxxxx.upstash.io` | ✅ oui |
 | `UPSTASH_REDIS_REST_TOKEN` | `AXxxxxxxxx...` | ✅ oui |
 | `UPSTASH_KEY_PREFIX` | `edumate` | conseillé |
-| `APP_URL` | `https://edumate.onrender.com` (ton URL réelle) | conseillé |
+| `APP_URL` | `https://edumate.onrender.com` (ton URL réelle) | ✅ **oui pour les e-mails** |
 | `FALLBACK_STORAGE` | `memory` | conseillé |
 | `ALLOW_DEMO_ACCOUNT` | `true` | facultatif |
 | `AI_PROVIDER` | `groq` / `openai` / `mistral` / `none` | facultatif |
@@ -167,6 +167,9 @@ Service → onglet **Environment** → *Add Environment Variable* (une par ligne
 | `ADMIN_EMAIL` | ton e-mail | facultatif (créé un admin) |
 | `ADMIN_PASSWORD` | mot de passe robuste (8+ car., lettre + chiffre) | avec `ADMIN_EMAIL` |
 | `RATE_LIMIT_MAX` | `1800` | utile si usage en classe derrière un NAT |
+| `MAIL_PROVIDER` | `brevo` / `resend` / `smtp`… | pour le mot de passe oublié |
+| `MAIL_API_KEY` | ta clé d'envoi | pour le mot de passe oublié |
+| `MAIL_FROM` | `EduMate <no-reply@ton-domaine.fr>` | pour le mot de passe oublié |
 
 **Générer un `SESSION_SECRET` sûr :**
 ```bash
@@ -178,6 +181,8 @@ fa54b3c5f2ebcd8212f7579b5103594c2e30f692467679a53cc26823d9d5a6edcbcf5bfa4a85b127
 ```
 
 > 💡 Sans `ADMIN_EMAIL`, **le premier compte créé sur ton instance devient administrateur** et débloque la page `/admin`.
+>
+> 🔑 **`APP_URL` n'est pas décoratif** : c'est la base des liens envoyés par e-mail. S'il manque, le lien « mot de passe oublié » peut pointer vers `localhost`.
 
 Chaque modification de variable déclenche un redéploiement : renseigne-les toutes, puis clique **Save Changes** une seule fois.
 
@@ -212,7 +217,41 @@ est laissé vide, le fournisseur est déduit du format de la clé (`gsk_` → gr
 
 ---
 
-## 🔍 Étape 6 — Vérifier que tout fonctionne (3 min)
+## 📧 Étape 6 (recommandée) — Activer le « Mot de passe oublié »
+
+Sans cette étape, la page de connexion affiche bien **« Mot de passe oublié ? »**, mais aucun e-mail ne part : le lien est écrit dans les journaux de Render. L'application ne casse pas, elle reste simplement à dépanner à la main.
+
+**Le plus simple depuis la France : Brevo** (300 e-mails/jour gratuits, aucune carte bancaire).
+
+1. Crée un compte sur **https://www.brevo.com** et valide ton inscription.
+2. **Expéditeurs, Domaines & DNS** → ajoute ton adresse expéditeur. Si tu utilises ton propre domaine, ajoute les enregistrements **DKIM/DMARC** proposés et attends la validation — sans cela les messages partent en spam.
+3. **SMTP & API** → *API v3* → **Generate a new API key** (la clé commence par `xkeysib-`).
+4. Dans Render → **Environment** :
+   ```
+   MAIL_PROVIDER = brevo
+   MAIL_API_KEY  = xkeysib-xxxxxxxxxxxxxxxxxxxx
+   MAIL_FROM     = EduMate <no-reply@ton-domaine.fr>
+   MAIL_REPLY_TO = ton@email.fr
+   ```
+5. **Save Changes** (redéploiement automatique).
+
+**Vérification** — ouvre `https://ton-service.onrender.com/api/health` :
+
+```json
+"mail": { "provider": "brevo", "configured": true, "sent": 0, "failed": 0 }
+```
+
+Puis demande un lien sur `/mot-de-passe-oublie` avec ton adresse : `sent` doit passer à `1`.
+
+**Alternatives** : `resend` (100/jour), `sendgrid`, `mailgun`, `postmark`, ou `smtp` avec une adresse Gmail/OVH (mot de passe d'application requis). Aucun fournisseur ? Laisse vide : les liens partent dans les **Logs**, et tu peux les copier-coller toi-même.
+
+> 🔑 **Compte administrateur bloqué ?** Pas besoin d'e-mails : `RECOVERY_EMAIL` + `RECOVERY_PASSWORD` dans Render, un redéploiement, tu te connectes, puis tu **supprimes les deux variables**. Procédure détaillée : [`docs/MOT-DE-PASSE-OUBLIE.md`](MOT-DE-PASSE-OUBLIE.md#2-urgence-récupérer-un-compte-administrateur).
+
+> 📖 Guide complet (tous les fournisseurs, dépannage, fonctionnement interne) : **[`docs/MOT-DE-PASSE-OUBLIE.md`](MOT-DE-PASSE-OUBLIE.md)**
+
+---
+
+## 🔍 Étape 7 — Vérifier que tout fonctionne (3 min)
 
 ### 6.1 Les logs Render doivent afficher
 ```
@@ -239,7 +278,7 @@ Ouvre `https://TON-APP.onrender.com/api/health` et vérifie :
 
 ---
 
-## 🔄 Étape 7 — Mises à jour automatiques
+## 🔄 Étape 8 — Mises à jour automatiques
 
 Désormais, chaque push sur `main` redéploie tout seul :
 

@@ -22,7 +22,7 @@ import express, { type Express, type RequestHandler } from 'express';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 
-import { config, hasAiProvider } from './lib/config.js';
+import { config, hasAiProvider, appBaseUrl } from './lib/config.js';
 import { getStartupError, getStorage } from './lib/storage.js';
 import { catalogError, getCatalog } from './lib/catalog.js';
 import { attachUser, errorHandler, notFoundHandler, rateLimit, securityHeaders } from './lib/middleware.js';
@@ -36,8 +36,11 @@ import { servicesRouter } from './routes/services.js';
 import { adminRouter } from './routes/admin.js';
 import { feedRouter } from './routes/feed.js';
 import { planningRouter } from './routes/planning.js';
-import { findUserByEmail, updateUser } from './lib/store.js';
+import { findUserByEmail, setUserPassword, updateUser } from './lib/store.js';
 import { hashPassword } from './lib/auth.js';
+import { mailerStats, mailerStatus } from './lib/mailer.js';
+import { revokeResetTokens, sweepExpiredResetTokens } from './lib/passwordReset.js';
+import { passwordIssues } from './lib/validate.js';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Build du frontend : `dist/client` en production (`dist/server/index.js`). */
@@ -82,6 +85,8 @@ export function createApp(): Express {
     const store = await getStorage();
     const catalog = getCatalog();
     const database = await store.health();
+    const mail = mailerStatus();
+    const mailCounters = mailerStats();
     res.json({
       ok: true,
       app: 'EduMate',
@@ -96,6 +101,26 @@ export function createApp(): Express {
       databaseNotice: database.notice ?? getStartupError(),
       catalogError: catalogError(),
       ai: { provider: hasAiProvider() ? config.ai.provider : 'local', configured: hasAiProvider() },
+      /*
+       * État de l'envoi d'e-mails (mot de passe oublié).
+       *
+       * Les compteurs sont publics mais AGRÉGÉS : ils ne renseignent ni sur un
+       * compte ni sur un destinataire. Ils sont indispensables parce que la
+       * route /api/auth/forgot répond volontairement la même chose que
+       * l'adresse existe ou non — sans eux, un prestataire qui refuse les
+       * messages serait invisible. Le détail de la dernière erreur reste dans
+       * les journaux du serveur.
+       */
+      mail: {
+        provider: mail.provider,
+        configured: mail.configured,
+        from: mail.from || null,
+        sent: mailCounters.sent,
+        failed: mailCounters.failed,
+        lastSentAt: mailCounters.lastSentAt,
+        resetLinkTtlMinutes: config.passwordReset.ttlMinutes,
+        resetPath: config.passwordReset.path,
+      },
       catalog: {
         subjects: catalog.stats.subjects,
         levels: catalog.stats.levels,
@@ -313,12 +338,93 @@ async function ensureAnAdminExists(): Promise<void> {
   console.log(`[EduMate] Aucun administrateur : rôle attribué au premier compte (${oldest.email}).`);
 }
 
+/**
+ * Dépannage d'urgence : réinitialise le mot de passe d'un compte au démarrage.
+ *
+ * Cas concret : l'administrateur a perdu son mot de passe ET aucun prestataire
+ * d'e-mails n'est encore configuré (donc le lien « mot de passe oublié » ne peut
+ * pas partir). Render ne permet pas d'exécuter de script sur le plan gratuit :
+ * poser deux variables d'environnement puis redéployer est la seule voie
+ * d'accès à la base.
+ *
+ *   RECOVERY_EMAIL        = admin@monlycee.fr
+ *   RECOVERY_PASSWORD     = NouveauMot2passe!
+ *   RECOVERY_MAKE_ADMIN   = true          (facultatif)
+ *
+ * 🔴 Ces variables doivent être SUPPRIMÉES de Render juste après la connexion :
+ *    tant qu'elles sont présentes, le mot de passe est réappliqué à chaque
+ *    redémarrage et écraserait tout changement fait depuis l'interface.
+ *
+ * Garde-fous : mot de passe conforme à la politique de l'application, compte
+ * inexistant = simple avertissement (jamais de création implicite), toutes les
+ * sessions existantes sont révoquées, et l'opération est journalisée.
+ */
+async function applyAccountRecovery(): Promise<void> {
+  const { email, password, makeAdmin } = config.recovery;
+  if (!email && !password) return;
+
+  if (!email || !password) {
+    console.warn('[EduMate] RECOVERY_EMAIL et RECOVERY_PASSWORD doivent être renseignés ENSEMBLE : dépannage ignoré.');
+    return;
+  }
+
+  const issues = passwordIssues(password);
+  if (issues.length) {
+    console.error(`[EduMate] RECOVERY_PASSWORD refusé (trop faible) : ${issues.join(', ')}.`);
+    return;
+  }
+
+  let user: Awaited<ReturnType<typeof findUserByEmail>> = null;
+  try {
+    user = await findUserByEmail(email);
+  } catch (error) {
+    console.error(`[EduMate] Dépannage impossible (base injoignable) : ${(error as Error).message}`);
+    return;
+  }
+  if (!user) {
+    console.error(
+      `[EduMate] RECOVERY_EMAIL=${email} ne correspond à aucun compte : rien n'a été modifié.\n` +
+        '           Vérifie l’orthographe (l’adresse est comparée en minuscules).',
+    );
+    return;
+  }
+
+  try {
+    await setUserPassword(user.id, password);
+    await revokeResetTokens(user.id);
+    if (makeAdmin && user.role !== 'admin') {
+      await updateUser(user.id, { role: 'admin' });
+    }
+  } catch (error) {
+    console.error(`[EduMate] Échec du dépannage du compte ${email} : ${(error as Error).message}`);
+    return;
+  }
+
+  console.log(
+    [
+      '',
+      '  🔑 [EduMate] DÉPANNAGE APPLIQUÉ (RECOVERY_EMAIL)',
+      `     Compte          : ${email}`,
+      `     Rôle            : ${makeAdmin ? 'administrateur' : user.role}`,
+      '     Mot de passe    : remplacé par RECOVERY_PASSWORD',
+      '     Sessions        : toutes les sessions précédentes ont été fermées',
+      '',
+      '     🔴 SUPPRIME maintenant RECOVERY_EMAIL et RECOVERY_PASSWORD dans',
+      '        Render → Environment, puis redéploie. Tant qu’elles sont présentes,',
+      '        ce mot de passe est réappliqué à CHAQUE démarrage.',
+      '',
+    ].join('\n'),
+  );
+}
+
 export async function startServer(): Promise<void> {
   const store = await getStorage();
   const catalog = getCatalog();
   await ensureAdminAccount();
+  await applyAccountRecovery();
 
   const app = createApp();
+  const mail = mailerStatus();
   const server = app.listen(config.port, () => {
     const lines = [
       '',
@@ -327,12 +433,24 @@ export async function startServer(): Promise<void> {
       `     Port            : ${config.port}`,
       `     Base de données : ${store.kind}${store.kind === 'upstash' ? ' (Upstash Redis)' : ''}`,
       `     IA              : ${hasAiProvider() ? config.ai.provider : 'tuteur intégré hors-ligne'}${hasAiProvider() ? '' : ' (aucune clé : renseigne AI_API_KEY)'}`,
+      `     E-mails         : ${
+        mail.configured
+          ? `${mail.provider} ✔ (${mail.from})`
+          : 'non configuré — les liens de réinitialisation partent dans les LOGS'
+      }`,
       `     Compte démo     : ${config.security.allowDemoAccount ? 'activé (partagé)' : 'désactivé'}`,
       `     Catalogue       : ${catalog.stats.topics} sujets / ${catalog.stats.playable} jouables`,
-      `     URL             : http://localhost:${config.port}`,
+      `     URL             : ${appBaseUrl() || `http://localhost:${config.port}`}`,
       '',
     ];
     console.log(lines.join('\n'));
+    if (!mail.configured) {
+      console.warn(
+        '  ⚠️  « Mot de passe oublié » fonctionne, mais aucun e-mail ne part : renseigne\n' +
+          '     MAIL_PROVIDER + MAIL_API_KEY (ou SMTP_HOST/USER/PASS) dans Render → Environment.\n' +
+          '     En attendant, chaque lien demandé est écrit dans ces journaux (onglet Logs).\n',
+      );
+    }
     if (getStartupError()) console.warn(`  ⚠️  ${getStartupError()}\n`);
     /*
      * Contrôles de démarrage, asynchrones et non bloquants.
@@ -344,6 +462,18 @@ export async function startServer(): Promise<void> {
       .then(() => ensureAnAdminExists())
       .catch((error: unknown) => {
         console.warn(`[EduMate] Contrôle des comptes ignoré : ${(error as Error).message}`);
+      });
+    /*
+     * Purge des liens de réinitialisation périmés : la couche `Storage` n'expose
+     * pas de TTL Redis, l'expiration est donc vérifiée à la lecture ET balayée
+     * ici pour ne pas laisser d'empreintes orphelines s'accumuler dans Upstash.
+     */
+    void sweepExpiredResetTokens()
+      .then((removed) => {
+        if (removed > 0) console.log(`[EduMate] ${removed} lien(s) de réinitialisation expiré(s) purgé(s).`);
+      })
+      .catch((error: unknown) => {
+        console.warn(`[EduMate] Purge des liens expirés ignorée : ${(error as Error).message}`);
       });
   });
 

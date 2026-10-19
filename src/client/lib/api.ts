@@ -311,7 +311,41 @@ export const endpoints = {
     }>('/api/auth/options'),
   updateMe: (payload: Record<string, unknown>) => api.put<{ user: PublicUser }>('/api/auth/me', payload),
   updatePreferences: (payload: Partial<Preferences>) => api.put<{ user: PublicUser }>('/api/auth/me/preferences', payload),
-  changePassword: (payload: { currentPassword: string; newPassword: string }) => api.post<{ ok: boolean }>('/api/auth/me/password', payload),
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    api.post<{ ok: boolean; csrfToken?: string; sessionsRevoked?: boolean; user?: PublicUser }>('/api/auth/me/password', payload),
+
+  /* ------------------- Mot de passe oublié ------------------- */
+  /**
+   * Demande un lien de réinitialisation.
+   *
+   * La réponse est IDENTIQUE que l'adresse corresponde à un compte ou non
+   * (anti-énumération) : l'interface affiche donc toujours le même message.
+   * `devLink` n'est présent qu'hors production, pour les tests et le
+   * développement local sans prestataire d'e-mails.
+   */
+  forgotPassword: (payload: { email: string }) =>
+    api.post<{
+      ok: boolean;
+      mailConfigured: boolean;
+      expiresMinutes: number;
+      devLink?: string;
+    }>('/api/auth/forgot', payload),
+  /** Teste un jeton sans le consommer (ouverture de la page de réinitialisation). */
+  verifyResetToken: (payload: { token: string }) =>
+    api.post<
+      | { valid: true; expiresAt: string; emailHint: string; remainingSeconds: number }
+      | { valid: false; reason: 'expired' | 'invalid' }
+    >('/api/auth/reset/verify', payload),
+  /** Applique le nouveau mot de passe et ouvre une session. */
+  resetPassword: (payload: { token: string; password: string }) =>
+    api.post<{
+      ok: boolean;
+      user: PublicUser;
+      csrfToken: string;
+      sessionsRevoked: boolean;
+      mailConfigured: boolean;
+    }>('/api/auth/reset', payload),
+
   deleteAccount: () => api.delete<{ ok: boolean; deletedKeys: number }>('/api/auth/me'),
   /** Télécharge l'export JSON de toutes les données du compte. */
   exportData: async (): Promise<Blob> => {
